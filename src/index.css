@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ColourPlus Design Tokens */
+  --color-header: #e8e7e4;
+  --color-header-text: #0f3f8a;
+  --color-body: #0a1018;
+  --color-panel: #101823;
+  --color-panel-hover: #162232;
+  --color-panel-active: #1c2b3f;
+  --color-border: #1f2d3f;
+  --color-border-light: #2c3e56;
+  --color-text: #f2f4f7;
+  --color-muted: #8d99a8;
+  --color-subtle: #4b5869;
+
+  /* Brand Colors */
+  --color-cp-navy: #0f3f8a;
+  --color-cp-navy-hover: #154fb0;
+  --color-cp-red: #e5373b;
+  --color-cp-green: #2f9e5b;
+
+  /* Funnel Status Colors */
+  --color-hot: #e5373b;
+  --color-hot-bg: rgba(229, 55, 59, 0.14);
+  --color-hot-border: rgba(229, 55, 59, 0.35);
+
+  --color-warm: #f59e0b;
+  --color-warm-bg: rgba(245, 158, 11, 0.14);
+  --color-warm-border: rgba(245, 158, 11, 0.35);
+
+  --color-nurture: #2f9e5b;
+  --color-nurture-bg: rgba(47, 158, 91, 0.14);
+  --color-nurture-border: rgba(47, 158, 91, 0.35);
+
+  --color-out-of-scope: #8d99a8;
+  --color-out-of-scope-bg: rgba(141, 153, 168, 0.14);
+  --color-out-of-scope-border: rgba(141, 153, 168, 0.35);
+
+  /* Geometry & Typography */
+  --radius-card: 18px;
+  --radius-pill: 9999px;
+  --tracking-hero: -0.05em;
+}
+
+/* Custom Scrollbars for panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a1018;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f2d3f;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2c3e56;
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .hero-headline {
+    letter-spacing: var(--tracking-hero);
+  }
+}
