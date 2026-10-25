@@ -1,4 +1,5 @@
-import { CRMSettings } from '../types/crm';
+import { CRMSettings, COLOURPLUS_PRODUCTS } from '../types/crm';
+import { TERRITORY_STATES } from './territories';
 
 export const initialSettings: CRMSettings = {
   scoring_thresholds: {
@@ -6,9 +7,21 @@ export const initialSettings: CRMSettings = {
     warm_min: 50,
     nurture_min: 0,
   },
-  supported_languages: ['English', 'Kannada', 'Hindi', 'Kannada/English Mixed'],
+  supported_languages: ['English', 'Kannada', 'Hindi', 'Marathi', 'Gujarati', 'Tamil', 'Telugu'],
   ai_mode: 'auto',
   auto_assign_hot: true,
   unreplied_warning_threshold_hours: 20,
-  whatsapp_business_number: '+91 80 4912 3000'
+  products: [...COLOURPLUS_PRODUCTS],
+  states: [...TERRITORY_STATES],
+  facility_sectors: [
+    'Factory & Industrial',
+    'Pharma & Cleanroom',
+    'Warehouse & Logistics',
+    'Commercial & Terrace',
+    'Cold Storage & Food',
+    'Household & Residential',
+    'Automobile & Garages',
+    'Other / General',
+  ],
 };
+

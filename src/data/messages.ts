@@ -15,7 +15,7 @@ export const initialMessages: Record<string, Message[]> = {
       id: 'm-102',
       lead_id: 'lead-001',
       sender: 'customer',
-      text: '📍 Dropped Pin: Plot 48/B, 2nd Phase, Peenya Industrial Area, Bengaluru 560058 (13.0312° N, 77.5186° E)',
+      text: '📍 Dropped Pin: Plot 48/B, 2nd Phase, Peenya Industrial Area, Bengaluru 560058 (13.0312° N, 77.5186° E). Factory floor for CNC machinery.',
       type: 'location',
       location_data: {
         name: 'SK Industrial Site - Peenya Phase 2',
@@ -30,10 +30,12 @@ export const initialMessages: Record<string, Message[]> = {
       id: 'm-103',
       lead_id: 'lead-001',
       sender: 'system',
-      text: 'SILENTLY EXTRACTED',
+      text: 'SILENTLY EXTRACTED FROM WHATSAPP',
       type: 'system_note',
       timestamp: '10:17 AM',
       extracted_chips: [
+        { label: 'Flooring Area', value: 'Factory & Industrial' },
+        { label: 'Facility Type', value: 'Heavy CNC Machine Shop Floor' },
         { label: 'Exact Address', value: 'Plot 48/B, 2nd Phase, Peenya Industrial Area' },
         { label: 'Coordinates', value: '13.0312, 77.5186' }
       ]
@@ -64,7 +66,7 @@ export const initialMessages: Record<string, Message[]> = {
       timestamp: '10:18 AM',
       extracted_chips: [
         { label: 'Appointment Confirmed', value: '14 Oct 2026, 3:00 PM' },
-        { label: 'AI Qualification', value: 'HOT (25,000 sq.ft + Forklift + Chemicals + <30 days)' }
+        { label: 'AI Qualification', value: 'HOT (15,000 sq.ft + Forklift + Chemicals + <30 days)' }
       ]
     }
   ],
@@ -82,9 +84,14 @@ export const initialMessages: Record<string, Message[]> = {
       id: 'm-202',
       lead_id: 'lead-002',
       sender: 'system',
-      text: '🌐 System: Language detected as English (Technical Pharma Spec). AI active.',
+      text: '🌐 System: Language detected as English. Flooring Area classified from WhatsApp conversation: Pharma & Cleanroom (WHO-GMP Sterile Lab).',
       type: 'system_note',
-      timestamp: '09:05 AM'
+      timestamp: '09:05 AM',
+      extracted_chips: [
+        { label: 'Flooring Area', value: 'Pharma & Cleanroom' },
+        { label: 'Cleanroom Area', value: '6,500 sq ft' },
+        { label: 'Compliance', value: 'WHO-GMP & USFDA' }
+      ]
     },
     {
       id: 'm-203',
@@ -130,6 +137,18 @@ export const initialMessages: Record<string, Message[]> = {
       timestamp: 'Yesterday 02:20 PM'
     },
     {
+      id: 'm-301b',
+      lead_id: 'lead-003',
+      sender: 'system',
+      text: '🔍 Extracted from WhatsApp: Flooring Area classified as Commercial & Terrace.',
+      type: 'system_note',
+      timestamp: 'Yesterday 02:21 PM',
+      extracted_chips: [
+        { label: 'Flooring Area', value: 'Commercial & Terrace' },
+        { label: 'Application', value: 'Roof Terrace Waterproofing' }
+      ]
+    },
+    {
       id: 'm-302',
       lead_id: 'lead-003',
       sender: 'ai',
@@ -160,9 +179,21 @@ export const initialMessages: Record<string, Message[]> = {
       id: 'm-401',
       lead_id: 'lead-004',
       sender: 'customer',
-      text: 'Hello, what is the cost of dust-proofing 40,000 sq ft warehouse concrete floor in Electronic City?',
+      text: 'Hello, what is the cost of dust-proofing 40,000 sq ft warehouse concrete floor in Electronic City logistics park?',
       type: 'text',
       timestamp: '2 days ago'
+    },
+    {
+      id: 'm-401b',
+      lead_id: 'lead-004',
+      sender: 'system',
+      text: '🔍 Extracted from WhatsApp: Flooring Area classified as Warehouse & Logistics.',
+      type: 'system_note',
+      timestamp: '2 days ago',
+      extracted_chips: [
+        { label: 'Flooring Area', value: 'Warehouse & Logistics' },
+        { label: 'Volume', value: '40,000 sq ft' }
+      ]
     },
     {
       id: 'm-402',
@@ -195,7 +226,7 @@ export const initialMessages: Record<string, Message[]> = {
       id: 'm-501',
       lead_id: 'lead-005',
       sender: 'customer',
-      text: 'Namaskara sir, nivu bedroom wall paint madtira? Eradu room paint bekittu Mysuru nalli. Also namma RCB match ticket yavaga ide?',
+      text: 'Namaskara sir, nivu bedroom wall paint madtira? Eradu room paint bekittu Mysuru nalli house bedroom. Also namma RCB match ticket yavaga ide?',
       type: 'text',
       timestamp: 'Oct 04, 04:45 PM'
     },
@@ -203,9 +234,13 @@ export const initialMessages: Record<string, Message[]> = {
       id: 'm-502',
       lead_id: 'lead-005',
       sender: 'system',
-      text: '⚠️ System Flag: Intent evaluated as Consumer/Retail & Out-of-Scope (Wall paints & Cricket tickets). Score 12/100.',
+      text: '⚠️ System Flag: Intent evaluated as Household/Residential & Out-of-Scope. Score 12/100.',
       type: 'system_note',
-      timestamp: 'Oct 04, 04:45 PM'
+      timestamp: 'Oct 04, 04:45 PM',
+      extracted_chips: [
+        { label: 'Flooring Area', value: 'Household & Residential' },
+        { label: 'Scope Status', value: 'Out of Scope (Retail)' }
+      ]
     },
     {
       id: 'm-503',
@@ -227,6 +262,18 @@ export const initialMessages: Record<string, Message[]> = {
       timestamp: 'Oct 03, 10:15 AM'
     },
     {
+      id: 'm-601b',
+      lead_id: 'lead-006',
+      sender: 'system',
+      text: '🔍 Extracted from WhatsApp: Flooring Area classified as Cold Storage & Food Processing.',
+      type: 'system_note',
+      timestamp: 'Oct 03, 10:16 AM',
+      extracted_chips: [
+        { label: 'Flooring Area', value: 'Cold Storage & Food' },
+        { label: 'Temperature Spec', value: '-25°C Thermal Shock' }
+      ]
+    },
+    {
       id: 'm-602',
       lead_id: 'lead-006',
       sender: 'ai',
@@ -234,5 +281,223 @@ export const initialMessages: Record<string, Message[]> = {
       type: 'text',
       timestamp: 'Oct 03, 10:18 AM'
     }
+  ],
+
+  'lead-007': [
+    {
+      id: 'm-701',
+      lead_id: 'lead-007',
+      sender: 'customer',
+      text: 'Hi, we are setting up a multi-brand automobile service workshop bay and showroom in Peenya. Area is 12,000 sq ft. Vehicles leak oil, grease, brake fluid. Need high gloss anti-slip polyurethane floor.',
+      type: 'text',
+      timestamp: '11:30 AM'
+    },
+    {
+      id: 'm-702',
+      lead_id: 'lead-007',
+      sender: 'system',
+      text: '🔍 Extracted: Product = Epoxy Polyurethane (EPU) Coating, Area = Automobile & Garages.',
+      type: 'system_note',
+      timestamp: '11:31 AM',
+      extracted_chips: [
+        { label: 'Product', value: 'Epoxy Polyurethane (EPU) Coating' },
+        { label: 'Flooring Area', value: 'Automobile & Garages' },
+        { label: 'Requirement', value: 'Oil & Brake Fluid Resistance' },
+        { label: 'Project Area', value: '12,000 sq ft' }
+      ]
+    },
+    {
+      id: 'm-703',
+      lead_id: 'lead-007',
+      sender: 'ai',
+      text: 'Hello! For automotive workshops and service bays, ColourPlus EPU (Epoxy Polyurethane) coating provides zero oil absorption, hot tire pickup resistance, and easy cleaning.\n\nCan we schedule a site inspection tomorrow around 3:00 PM?',
+      type: 'text',
+      timestamp: '11:33 AM'
+    }
+  ],
+
+  'lead-008': [
+    {
+      id: 'm-801',
+      lead_id: 'lead-008',
+      sender: 'customer',
+      text: 'Hi ColourPlus, we are expanding our semiconductor and mobile robotics line in Electronic City. Need ESD antistatic floor coating for 8,200 sq ft. Surface resistance must be 10^6 to 10^9 ohms.',
+      type: 'text',
+      timestamp: '10:45 AM'
+    },
+    {
+      id: 'm-802',
+      lead_id: 'lead-008',
+      sender: 'system',
+      text: '🔍 Extracted: Product = ESD Coating Flooring, Compliance = ANSI/ESD S20.20.',
+      type: 'system_note',
+      timestamp: '10:46 AM',
+      extracted_chips: [
+        { label: 'Product', value: 'ESD Coating Flooring' },
+        { label: 'Resistance', value: '10^6 - 10^9 Ohms' },
+        { label: 'Project Area', value: '8,200 sq ft' }
+      ]
+    },
+    {
+      id: 'm-803',
+      lead_id: 'lead-008',
+      sender: 'ai',
+      text: 'Hello Mr. Swaminathan! Our ColourPlus ESD Coating Flooring with conductive carbon black matrix and copper grounding grid strictly complies with ANSI/ESD S20.20 for sensitive robotics and SMT assembly.\n\nI will send our copper tape layout and technical data sheet right away.',
+      type: 'text',
+      timestamp: '10:48 AM'
+    }
+  ],
+
+  'lead-009': [
+    {
+      id: 'm-901',
+      lead_id: 'lead-009',
+      sender: 'customer',
+      text: 'Hello, looking for anti-skid coating for 4 basement parking ramps at our tech park on Outer Ring Road. Area is 14,000 sq ft. Cars slip when tires are wet during rain.',
+      type: 'text',
+      timestamp: 'Yesterday, 3:15 PM'
+    },
+    {
+      id: 'm-902',
+      lead_id: 'lead-009',
+      sender: 'ai',
+      text: 'Hello Meera! For vehicle ramps, ColourPlus Anti-Skid Coating Flooring with bauxite/quartz aggregate broadcast offers maximum tyre grip even under steep incline and wet conditions. We can visit tomorrow for a friction test.',
+      type: 'text',
+      timestamp: 'Yesterday, 3:20 PM'
+    }
+  ],
+
+  'lead-010': [
+    {
+      id: 'm-1001',
+      lead_id: 'lead-010',
+      sender: 'customer',
+      text: 'Namaste, we need 33kV dielectric insulation matting replacement for our Hosur electrical substation control room. 4,500 sq ft. Must be CPRI certified.',
+      type: 'text',
+      timestamp: 'Yesterday, 11:45 AM'
+    },
+    {
+      id: 'm-1002',
+      lead_id: 'lead-010',
+      sender: 'ai',
+      text: 'Namaste Mr. Deshmukh. ColourPlus Dielectric Insulation Flooring is tested up to 33kV breakdown voltage and eliminates seam degradation. We are dispatching the CPRI certificate copy now.',
+      type: 'text',
+      timestamp: 'Yesterday, 11:50 AM'
+    }
+  ],
+
+  'lead-011': [
+    {
+      id: 'm-1101',
+      lead_id: 'lead-011',
+      sender: 'customer',
+      text: 'Hi, we have severe marine saline spray and chemical corrosion on bund walls and pump bases at our Mangalore terminal. Need heavy anti-corrosive coating for 9,000 sq ft.',
+      type: 'text',
+      timestamp: 'Oct 05, 9:40 AM'
+    },
+    {
+      id: 'm-1102',
+      lead_id: 'lead-011',
+      sender: 'ai',
+      text: 'Hello Mr. Singhania! ColourPlus Anti-Corrosive Coating provides high cross-linked barrier protection against coastal chlorides, splash acid, and harsh industrial weathering.',
+      type: 'text',
+      timestamp: 'Oct 05, 9:45 AM'
+    }
+  ],
+
+  'lead-012': [
+    {
+      id: 'm-1201',
+      lead_id: 'lead-012',
+      sender: 'customer',
+      text: 'Need yellow forklift transit lines and white pedestrian zebra crossings for our 22,000 sq ft logistics hub in Nelamangala.',
+      type: 'text',
+      timestamp: 'Oct 04, 11:20 AM'
+    },
+    {
+      id: 'm-1202',
+      lead_id: 'lead-012',
+      sender: 'ai',
+      text: 'Hello Rohit! ColourPlus Marking (Yellow / White) uses rapid-curing, high-visibility polyurethane formulations with exceptional tire-wear resistance. Please share the CAD layout to estimate linear meters.',
+      type: 'text',
+      timestamp: 'Oct 04, 11:25 AM'
+    }
+  ],
+
+  'lead-013': [
+    {
+      id: 'm-1301',
+      lead_id: 'lead-013',
+      sender: 'customer',
+      text: 'Hi, opening a luxury car showroom on 100ft road Indiranagar. 5,000 sq ft. We want seamless elegant matt finish epoxy with zero reflection under studio lighting.',
+      type: 'text',
+      timestamp: 'Oct 06, 3:00 PM'
+    },
+    {
+      id: 'm-1302',
+      lead_id: 'lead-013',
+      sender: 'ai',
+      text: 'Hello Tarun! ColourPlus Epoxy Matt Finish Flooring is designed specifically for premium automotive showrooms and corporate lobbies. We have samples ready in RAL 7016 Anthracite Grey.',
+      type: 'text',
+      timestamp: 'Oct 06, 3:05 PM'
+    }
+  ],
+
+  'lead-014': [
+    {
+      id: 'm-1401',
+      lead_id: 'lead-014',
+      sender: 'customer',
+      text: 'Need 50mm radius epoxy coving along 450 meters of cleanroom wall perimeter at our Bommasandra sterile injectable unit.',
+      type: 'text',
+      timestamp: 'Oct 05, 1:30 PM'
+    },
+    {
+      id: 'm-1402',
+      lead_id: 'lead-014',
+      sender: 'ai',
+      text: 'Hello Deepak! ColourPlus Coving creates seamless curved transitions eliminating 90-degree dirt traps, fully meeting WHO-GMP cleanroom standards.',
+      type: 'text',
+      timestamp: 'Oct 05, 1:35 PM'
+    }
+  ],
+
+  'lead-015': [
+    {
+      id: 'm-1501',
+      lead_id: 'lead-015',
+      sender: 'customer',
+      text: 'Looking for 18,000 sq ft outdoor bulk fertilizer yard coating that will withstand full sunlight UV and chemical salt exposure.',
+      type: 'text',
+      timestamp: 'Oct 05, 4:00 PM'
+    },
+    {
+      id: 'm-1502',
+      lead_id: 'lead-015',
+      sender: 'ai',
+      text: 'Hello Balaji! ColourPlus Polyurethane Coating is 100% aliphatic UV-stable and resists yellowing and chemical attack in outdoor storage yards.',
+      type: 'text',
+      timestamp: 'Oct 05, 4:05 PM'
+    }
+  ],
+
+  'lead-016': [
+    {
+      id: 'm-1601',
+      lead_id: 'lead-016',
+      sender: 'customer',
+      text: 'We have 11,000 sq ft of uneven subfloor in Brigade Road renovation. Need fast-setting self leveling cementitious underlayment.',
+      type: 'text',
+      timestamp: 'Oct 06, 11:45 AM'
+    },
+    {
+      id: 'm-1602',
+      lead_id: 'lead-016',
+      sender: 'ai',
+      text: 'Hello Sanjeev! ColourPlus Cementitious Underlay cures quickly to a perfectly flat, compressive-strength base ready for epoxy or vinyl top finish.',
+      type: 'text',
+      timestamp: 'Oct 06, 11:50 AM'
+    }
   ]
 };
+

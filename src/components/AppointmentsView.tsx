@@ -1,6 +1,12 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Calendar, MapPin, User, Clock, CheckCircle2, Plus } from 'lucide-react';
 import { Appointment } from '../types/crm';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { AnimatedText } from './ui/AnimatedText';
+import { perspectiveCardIn, staggerContainer } from '../lib/motion';
 
 interface AppointmentsViewProps {
   appointments: Appointment[];
@@ -11,79 +17,97 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   appointments,
   onOpenConfirmVisit,
 }) => {
+
   return (
-    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-brand-panel border border-brand-border rounded-[18px] p-5">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface border border-border-subtle rounded-card p-6 shadow-elevation-1 transition-colors"
+      >
         <div>
-          <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
+          <div className="flex items-center space-x-2 text-brand-green font-bold text-xs uppercase tracking-wider mb-1 font-mono">
             <Calendar className="w-4 h-4" />
-            <span>Field Inspections & Schedule</span>
+            <span>Field Technical Audits & Schedule</span>
           </div>
-          <h2 className="text-2xl font-black text-brand-text">Site Visit Appointments</h2>
-          <p className="text-xs text-brand-muted mt-1">
-            Confirmed application engineer site inspections, concrete substrate moisture testing, and technical audits.
+          <AnimatedText
+            text="Site Visit Appointments"
+            as="h2"
+            className="text-2xl font-black text-text-primary tracking-tight"
+          />
+          <p className="text-xs text-text-secondary mt-1 max-w-2xl">
+            Confirmed application engineer site inspections, concrete substrate moisture (%) testing, and technical floor audits.
           </p>
         </div>
 
-        <button
+        <Button
+          variant="brand"
+          size="sm"
           onClick={onOpenConfirmVisit}
-          className="bg-cp-navy hover:bg-cp-navyHover text-white text-xs font-semibold px-5 py-2.5 rounded-full transition shadow-sm flex items-center gap-2 self-start sm:self-auto"
+          leftIcon={<Plus className="w-4 h-4" />}
+          className="rounded-full self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" />
-          <span>Schedule New Site Visit</span>
-        </button>
-      </div>
+          Schedule Site Visit
+        </Button>
+      </motion.div>
 
       {/* APPOINTMENTS CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <motion.div
+        variants={staggerContainer(0.06)}
+        initial="initial"
+        animate="animate"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5 sm:gap-5"
+      >
         {appointments.map((app) => (
-          <div
-            key={app.id}
-            className="bg-brand-panel border border-brand-border hover:border-brand-borderLight rounded-[18px] p-5 space-y-3.5 shadow-sm transition flex flex-col justify-between"
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  {app.status.toUpperCase()}
-                </span>
-                <span className="text-xs font-mono text-brand-muted flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> {app.time}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-brand-text">{app.lead_name}</h3>
-                <p className="text-xs text-brand-muted font-medium">{app.company}</p>
-              </div>
-            </div>
-
-            <div className="space-y-2 text-xs pt-2 border-t border-brand-border">
-              <div className="flex items-start space-x-2 text-brand-text">
-                <MapPin className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <span className="leading-snug">{app.location}</span>
-              </div>
-
-              <div className="flex items-center space-x-2 text-brand-muted">
-                <User className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span>Engineer: <strong className="text-brand-text">{app.engineer}</strong></span>
-              </div>
-
-              {app.notes && (
-                <div className="bg-brand-body p-2.5 rounded-xl border border-brand-border text-brand-muted text-[11px] leading-relaxed">
-                  "{app.notes}"
+          <motion.div key={app.id} variants={perspectiveCardIn}>
+            <Card
+              elevation={1}
+              interactive
+              className="p-5 sm:p-6 space-y-4 flex flex-col justify-between h-full"
+            >
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <Badge variant="green" size="xs" icon={<CheckCircle2 className="w-3 h-3" />}>
+                    {app.status.toUpperCase()}
+                  </Badge>
+                  <span className="text-xs font-mono text-text-tertiary flex items-center gap-1.5 font-semibold">
+                    <Clock className="w-3.5 h-3.5 text-text-tertiary" /> {app.time}
+                  </span>
                 </div>
-              )}
-            </div>
 
-            <div className="pt-2 flex items-center justify-between text-xs text-brand-subtle font-semibold">
-              <span>Date: {app.date}</span>
-              <button className="text-cp-navy hover:underline">View Lead Details →</button>
-            </div>
-          </div>
+                <div>
+                  <h3 className="text-base font-bold text-text-primary tracking-tight">{app.lead_name}</h3>
+                  <p className="text-xs text-text-secondary font-medium">{app.company}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 text-xs pt-3 border-t border-border-subtle">
+                <div className="flex items-start space-x-2 text-text-secondary">
+                  <MapPin className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                  <span className="leading-snug">{app.location}</span>
+                </div>
+
+                <div className="flex items-center space-x-2 text-text-secondary">
+                  <User className="w-4 h-4 text-brand-navy dark:text-blue-400 flex-shrink-0" />
+                  <span>Engineer: <strong className="text-text-primary">{app.engineer}</strong></span>
+                </div>
+
+                {app.notes && (
+                  <div className="bg-surface-subtle p-3 rounded-xl border border-border-subtle text-text-secondary text-[11px] leading-relaxed shadow-2xs italic">
+                    "{app.notes}"
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 flex items-center justify-between text-xs text-text-tertiary font-semibold border-t border-border-subtle">
+                <span className="font-mono">Date: {app.date}</span>
+                <span className="text-brand-navy dark:text-blue-400 font-bold">Confirmed Audit</span>
+              </div>
+            </Card>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 };

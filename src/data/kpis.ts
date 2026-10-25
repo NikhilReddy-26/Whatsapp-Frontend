@@ -8,5 +8,6 @@ export const initialKpis: KpiData = {
   site_visits_confirmed: 8,
   closed_leads: 12,
   average_score: 68,
-  cost_per_lead: '₹2.4'
+  cost_per_lead: '₹2.4',
+  assigned_leads: 86,
 };

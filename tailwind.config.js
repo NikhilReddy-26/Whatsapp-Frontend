@@ -8,55 +8,82 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
-        // Core background and surface tokens
+        canvas: 'var(--canvas)',
+        surface: {
+          subtle: 'var(--surface-subtle)',
+          DEFAULT: 'var(--surface)',
+          elevated: 'var(--surface-elevated)',
+          hover: 'var(--surface-hover)',
+          active: 'var(--surface-active)',
+        },
+        border: {
+          subtle: 'var(--border-subtle)',
+          base: 'var(--border-base)',
+          strong: 'var(--border-strong)',
+        },
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          tertiary: 'var(--text-tertiary)',
+        },
         brand: {
-          header: 'var(--color-header, #e8e7e4)',
-          headerText: 'var(--color-header-text, #0f3f8a)',
-          body: 'var(--color-body, #0a1018)',
-          panel: 'var(--color-panel, #101823)',
-          panelHover: 'var(--color-panel-hover, #162232)',
-          panelActive: 'var(--color-panel-active, #1c2b3f)',
-          border: 'var(--color-border, #1f2d3f)',
-          borderLight: 'var(--color-border-light, #2c3e56)',
-          text: 'var(--color-text, #f2f4f7)',
-          muted: 'var(--color-muted, #8d99a8)',
-          subtle: 'var(--color-subtle, #4b5869)',
+          navy: 'var(--brand-navy)',
+          navyHover: 'var(--brand-navy-hover)',
+          green: 'var(--brand-green)',
+          red: 'var(--brand-red)',
         },
-        // ColourPlus Brand Colors
-        cp: {
-          navy: 'var(--color-cp-navy, #0f3f8a)',
-          navyHover: 'var(--color-cp-navy-hover, #154fb0)',
-          red: 'var(--color-cp-red, #e5373b)',
-          green: 'var(--color-cp-green, #2f9e5b)',
-        },
-        // Funnel Status Colors
         funnel: {
-          hot: 'var(--color-hot, #e5373b)',
-          hotBg: 'var(--color-hot-bg, rgba(229, 55, 59, 0.12))',
-          hotBorder: 'var(--color-hot-border, rgba(229, 55, 59, 0.35))',
-          warm: 'var(--color-warm, #f59e0b)',
-          warmBg: 'var(--color-warm-bg, rgba(245, 158, 11, 0.12))',
-          warmBorder: 'var(--color-warm-border, rgba(245, 158, 11, 0.35))',
-          nurture: 'var(--color-nurture, #2f9e5b)',
-          nurtureBg: 'var(--color-nurture-bg, rgba(47, 158, 91, 0.12))',
-          nurtureBorder: 'var(--color-nurture-border, rgba(47, 158, 91, 0.35))',
-          outOfScope: 'var(--color-out-of-scope, #8d99a8)',
-          outOfScopeBg: 'var(--color-out-of-scope-bg, rgba(141, 153, 168, 0.12))',
-          outOfScopeBorder: 'var(--color-out-of-scope-border, rgba(141, 153, 168, 0.35))',
-        }
+          hot: 'var(--funnel-hot)',
+          hotBg: 'var(--funnel-hot-bg)',
+          hotBorder: 'var(--funnel-hot-border)',
+          warm: 'var(--funnel-warm)',
+          warmBg: 'var(--funnel-warm-bg)',
+          warmBorder: 'var(--funnel-warm-border)',
+          nurture: 'var(--funnel-nurture)',
+          nurtureBg: 'var(--funnel-nurture-bg)',
+          nurtureBorder: 'var(--funnel-nurture-border)',
+          scope: 'var(--funnel-scope)',
+          scopeBg: 'var(--funnel-scope-bg)',
+          scopeBorder: 'var(--funnel-scope-border)',
+        },
+      },
+      boxShadow: {
+        'elevation-1': 'var(--shadow-elevation-1)',
+        'elevation-2': 'var(--shadow-elevation-2)',
+        'elevation-3': 'var(--shadow-elevation-3)',
+        'glow-hot': 'var(--shadow-glow-hot)',
+        'glow-navy': 'var(--shadow-glow-navy)',
+        'glow-green': 'var(--shadow-glow-green)',
       },
       borderRadius: {
-        'card': 'var(--radius-card, 18px)',
-        'pill': 'var(--radius-pill, 9999px)',
+        'card': '18px',
+        'modal': '24px',
+        'pill': '9999px',
       },
-      letterSpacing: {
-        'tight-hero': 'var(--tracking-hero, -0.05em)',
-      }
+      keyframes: {
+        'pulse-subtle': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.03)' },
+        },
+        'shimmer': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 0 15px rgba(239, 68, 68, 0.25)' },
+          '50%': { boxShadow: '0 0 25px rgba(239, 68, 68, 0.45)' },
+        },
+      },
+      animation: {
+        'pulse-subtle': 'pulse-subtle 2.5s infinite ease-in-out',
+        'shimmer': 'shimmer 1.8s infinite',
+        'glow-pulse': 'glow-pulse 2s infinite ease-in-out',
+      },
     },
   },
   plugins: [],
 }
-

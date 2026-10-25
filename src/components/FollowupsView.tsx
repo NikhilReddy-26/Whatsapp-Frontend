@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { CheckSquare, Clock, AlertCircle, Plus, CheckCircle, User } from 'lucide-react';
 import { Followup } from '../types/crm';
+import { AnimatedText } from './ui/AnimatedText';
+import { perspectiveCardIn } from '../lib/motion';
 
 interface FollowupsViewProps {
   followups: Followup[];
@@ -13,6 +16,7 @@ export const FollowupsView: React.FC<FollowupsViewProps> = ({
   onToggleStatus,
   onCreateFollowup,
 }) => {
+  const shouldReduceMotion = useReducedMotion();
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('pending');
 
   const filtered = followups.filter((f) => {
@@ -22,15 +26,24 @@ export const FollowupsView: React.FC<FollowupsViewProps> = ({
   });
 
   return (
-    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-brand-panel border border-brand-border rounded-[18px] p-5">
+      <motion.div
+        variants={perspectiveCardIn}
+        initial={shouldReduceMotion ? undefined : 'initial'}
+        animate="animate"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-brand-panel border border-brand-border rounded-[18px] p-5 shadow-elevation-1"
+      >
         <div>
           <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs uppercase tracking-wider mb-1">
             <CheckSquare className="w-4 h-4" />
             <span>Task Management & Follow-ups</span>
           </div>
-          <h2 className="text-2xl font-black text-brand-text">Sales Follow-up Action List</h2>
+          <AnimatedText
+            text="Sales Follow-up Action List"
+            as="h2"
+            className="text-2xl font-black text-brand-text"
+          />
           <p className="text-xs text-brand-muted mt-1">
             Track commercial quote deliveries, technical document follow-ups, and budget reviews with exact due dates.
           </p>
@@ -63,22 +76,28 @@ export const FollowupsView: React.FC<FollowupsViewProps> = ({
             All
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* TASK LIST */}
-      <div className="bg-brand-panel border border-brand-border rounded-[18px] overflow-hidden divide-y divide-brand-border">
+      <div className="bg-brand-panel border border-brand-border rounded-[18px] overflow-hidden divide-y divide-brand-border shadow-elevation-1">
         {filtered.length === 0 ? (
           <div className="p-12 text-center text-brand-muted text-sm">
             No follow-up tasks match current view.
           </div>
         ) : (
-          filtered.map((fol) => {
+          filtered.map((fol, idx) => {
             const isCompleted = fol.status === 'completed';
             const isHighPriority = fol.priority === 'high';
 
             return (
-              <div
+              <motion.div
                 key={fol.id}
+                variants={perspectiveCardIn}
+                initial={shouldReduceMotion ? undefined : 'initial'}
+                animate="animate"
+                transition={{
+                  delay: shouldReduceMotion ? 0 : Math.min(idx * 0.04, 0.35),
+                }}
                 className={`p-4 flex items-center justify-between gap-4 transition ${
                   isCompleted ? 'bg-brand-body/50 opacity-70' : 'hover:bg-brand-panelHover'
                 }`}
@@ -125,7 +144,7 @@ export const FollowupsView: React.FC<FollowupsViewProps> = ({
                     {fol.due_date}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             );
           })
         )}

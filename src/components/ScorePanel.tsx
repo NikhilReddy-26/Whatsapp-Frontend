@@ -1,198 +1,350 @@
 import React from 'react';
-import type { Lead, PipelineStage } from '../types/crm';
+import { motion } from 'motion/react';
+import type { Lead, PipelineStage, ChannelPartner } from '../types/crm';
+import { findSuggestedChannelPartner } from '../data/territories';
 import { FieldList } from './FieldList';
-import { NextAction } from './NextAction';
-import { StageProgress } from './StageProgress';
-import { CalendarCheck, StickyNote, UserCheck, ChevronRight } from 'lucide-react';
+import { ScoreGauge } from './ui/ScoreGauge';
+import { ProgressBar } from './ui/ProgressBar';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { AnimatedText } from './ui/AnimatedText';
+import {
+  CalendarCheck,
+  UserCheck,
+  UserPlus,
+  Bot,
+  ChevronRight,
+  Factory,
+  Warehouse,
+  Building2,
+  Snowflake,
+  Home,
+  Car,
+  FlaskConical,
+  Layers,
+  Package,
+  MessageSquare,
+  Sparkles,
+  MapPin,
+  Zap,
+} from 'lucide-react';
 
 interface ScorePanelProps {
   lead: Lead | null;
+  channelPartners?: ChannelPartner[];
   onOpenConfirmVisit: () => void;
-  onOpenAddNote: () => void;
+  onOpenAddNote?: () => void;
   onOpenAssignModal: () => void;
   onAddField: (leadId: string, key: string, value: string) => void;
-  onSelectStage: (stage: PipelineStage) => void;
+  onToggleAi?: (aiActive: boolean) => void;
+  onSelectStage?: (stage: PipelineStage) => void;
 }
 
 export const ScorePanel: React.FC<ScorePanelProps> = ({
   lead,
+  channelPartners = [],
   onOpenConfirmVisit,
-  onOpenAddNote,
   onOpenAssignModal,
   onAddField,
-  onSelectStage,
+  onToggleAi,
 }) => {
   if (!lead) {
     return (
-      <div className="bg-[#101823] border border-[#1f2d3f] rounded-[18px] flex items-center justify-center h-[760px] text-slate-400 text-sm">
+      <div className="bg-surface border border-border-subtle rounded-card flex items-center justify-center h-[760px] text-text-tertiary text-sm font-medium shadow-elevation-1">
         Select a lead to inspect intelligence & breakdown.
       </div>
     );
   }
 
-  // Circular Score Gauge Math
-  const score = lead.score;
-  const radius = 38;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-
-  const getScoreColor = () => {
-    switch (lead.funnel) {
-      case 'HOT':
-        return '#e5373b';
-      case 'WARM':
-        return '#f59e0b';
-      case 'NURTURE':
-        return '#2f9e5b';
-      case 'OUT_OF_SCOPE':
-      default:
-        return '#8d99a8';
-    }
-  };
+  const territorySuggestion = findSuggestedChannelPartner(lead, channelPartners);
 
   const { fit, opportunity, intent, urgency, completeness } = lead.score_breakdown;
 
   const factorList = [
-    { label: 'Fit', val: fit, max: 30 },
-    { label: 'Opportunity', val: opportunity, max: 25 },
-    { label: 'Intent', val: intent, max: 20 },
-    { label: 'Urgency', val: urgency, max: 15 },
-    { label: 'Completeness', val: completeness, max: 10 },
+    { label: 'Fit & Specification', val: fit, max: 30, color: 'var(--brand-navy)' },
+    { label: 'Opportunity & Scale', val: opportunity, max: 25, color: '#3b82f6' },
+    { label: 'Commercial Intent', val: intent, max: 20, color: '#8b5cf6' },
+    { label: 'Timeline Urgency', val: urgency, max: 15, color: '#f59e0b' },
+    { label: 'Data Completeness', val: completeness, max: 10, color: '#10b981' },
   ];
 
+  const getFlooringAreaIcon = (category?: string) => {
+    switch (category) {
+      case 'Factory & Industrial':
+        return <Factory className="w-4 h-4 text-amber-500" />;
+      case 'Pharma & Cleanroom':
+        return <FlaskConical className="w-4 h-4 text-teal-400" />;
+      case 'Warehouse & Logistics':
+        return <Warehouse className="w-4 h-4 text-blue-400" />;
+      case 'Commercial & Terrace':
+        return <Building2 className="w-4 h-4 text-purple-400" />;
+      case 'Cold Storage & Food':
+        return <Snowflake className="w-4 h-4 text-sky-400" />;
+      case 'Automobile & Garages':
+        return <Car className="w-4 h-4 text-rose-400" />;
+      case 'Household & Residential':
+        return <Home className="w-4 h-4 text-emerald-400" />;
+      default:
+        return <Layers className="w-4 h-4 text-text-tertiary" />;
+    }
+  };
+
+  const isAssigned = Boolean(
+    lead.assigned_to &&
+    lead.assigned_to.trim() !== '' &&
+    !lead.assigned_to.toLowerCase().includes('unassigned') &&
+    !lead.assigned_to.toLowerCase().includes('disqualification')
+  );
+
   return (
-    <div className="bg-[#101823] border border-[#1f2d3f] rounded-[18px] flex flex-col min-h-[760px] overflow-hidden shadow-sm p-5 space-y-5">
+    <div className="bg-surface border border-border-subtle rounded-card flex flex-col min-h-[760px] overflow-hidden shadow-elevation-1 p-5 sm:p-6 space-y-5 transition-colors">
       
-      {/* 1. HEADER: QUALIFICATION */}
-      <div className="flex items-center justify-between pb-1 border-b border-[#1f2d3f]/60">
-        <h2 className="text-xs font-mono font-bold tracking-widest uppercase text-slate-400">
-          QUALIFICATION
-        </h2>
+      {/* 1. TOP HEADER: ASSIGNED REP & ROUTING */}
+      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-brand-navy dark:text-blue-400 flex-shrink-0" />
+          <AnimatedText
+            text="LEAD DATA & INTELLIGENCE"
+            as="h2"
+            className="text-xs font-mono font-bold tracking-widest uppercase text-text-tertiary"
+          />
+        </div>
         <button
           onClick={onOpenAssignModal}
-          className="text-xs text-[#0f3f8a] hover:underline font-semibold flex items-center gap-1"
+          className="text-xs text-brand-navy dark:text-blue-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
         >
-          <UserCheck className="w-3.5 h-3.5 text-blue-400" />
-          <span className="truncate max-w-[120px] text-slate-300">{lead.assigned_to.split(' ')[0]}</span>
-          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <UserCheck className="w-3.5 h-3.5 text-brand-green" />
+          <span className="truncate max-w-[140px]">
+            {isAssigned ? `Assigned: ${lead.assigned_to}` : 'Assign Lead'}
+          </span>
+          <ChevronRight className="w-3 h-3 opacity-60" />
         </button>
       </div>
 
-      {/* 2. SCORE RING & SUMMARY CARD MATCHING REFERENCE IMAGE */}
-      <div className="flex items-center space-x-4">
-        {/* Score Circle */}
-        <div className="relative w-22 h-22 sm:w-24 sm:h-24 flex-shrink-0 flex items-center justify-center">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle
-              cx="48"
-              cy="48"
-              r={radius}
-              stroke="#1f2d3f"
-              strokeWidth="7"
-              fill="transparent"
-            />
-            <circle
-              cx="48"
-              cy="48"
-              r={radius}
-              stroke={getScoreColor()}
-              strokeWidth="7"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              fill="transparent"
-              className="transition-all duration-1000 ease-out"
-            />
-          </svg>
-          <div className="absolute flex flex-col items-center justify-center text-center">
-            <span className="text-2xl sm:text-3xl font-black text-white leading-none">
-              {score}
-            </span>
-          </div>
-        </div>
-
-        {/* Funnel Badge + Confidence + Reason */}
-        <div className="space-y-1.5 flex-1">
-          <div className="flex items-center space-x-2">
-            <span
-              className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border"
-              style={{
-                backgroundColor: `${getScoreColor()}20`,
-                color: getScoreColor(),
-                borderColor: `${getScoreColor()}50`,
-              }}
-            >
-              {lead.funnel.replace('_', ' ')}
-            </span>
-            <span className="text-xs font-bold text-white">
-              Confidence {(lead.confidence * 100).toFixed(0)}%
-            </span>
-          </div>
-          <p className="text-xs text-slate-300 leading-snug">
-            "{lead.reason}"
-          </p>
-        </div>
-      </div>
-
-      {/* 3. SCORING FACTOR BREAKDOWN MATCHING REFERENCE IMAGE */}
-      <div className="space-y-2.5 pt-2">
-        {factorList.map((item) => (
-          <div key={item.label} className="flex items-center justify-between gap-3 text-xs">
-            <span className="w-28 text-slate-300 font-medium text-xs flex-shrink-0">
-              {item.label}
-            </span>
-
-            {/* Blue Progress Bar */}
-            <div className="flex-1 h-2 bg-[#0a1018] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#2b6cb0] rounded-full transition-all duration-700"
-                style={{ width: `${(item.val / item.max) * 100}%` }}
-              ></div>
+      {/* 1.5 TERRITORY & CHANNEL PARTNER MATCH INTELLIGENCE */}
+      {(territorySuggestion.territory || lead.location) && (
+        <div className="bg-gradient-to-r from-brand-navy/10 via-surface-subtle to-brand-green/10 border border-brand-navy/25 rounded-2xl p-4 space-y-2.5 shadow-2xs">
+          {territorySuggestion.territory && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-black px-2 py-0.5 rounded-lg bg-brand-navy text-white shadow-2xs">
+                  {territorySuggestion.territory.territoryId}
+                </span>
+                <div>
+                  <h4 className="text-sm font-bold text-text-primary leading-tight">
+                    {territorySuggestion.territory.territoryName}
+                  </h4>
+                  <span className="text-[10px] text-text-tertiary font-mono">
+                    {territorySuggestion.territory.state} • {territorySuggestion.territory.priorityTier}
+                  </span>
+                </div>
+              </div>
+              {territorySuggestion.partner && (
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30">
+                  Partner: {territorySuggestion.partner.id}
+                </span>
+              )}
             </div>
+          )}
 
-            <span className="text-slate-400 font-mono text-xs w-10 text-right flex-shrink-0">
-              {item.val}/{item.max}
+          {lead.location && (
+            <div className="flex items-start gap-2 text-xs text-text-secondary bg-surface/90 p-2.5 rounded-xl border border-border-subtle">
+              <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium leading-relaxed text-text-primary">
+                  {lead.location.address || `${lead.location.city}, ${lead.location.state}`}
+                </p>
+                {lead.location.maps_link && (
+                  <a
+                    href={lead.location.maps_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-brand-navy dark:text-blue-400 hover:underline inline-flex items-center gap-1 font-semibold mt-0.5"
+                  >
+                    Open in Google Maps ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. MATCHED COLOURPLUS PRODUCT SPECIFICATION (SHINE SWEEP EFFECT) */}
+      {lead.product && (
+        <motion.div
+          initial={{ opacity: 0, y: 16, rotateX: -14 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 25 }}
+          style={{ transformPerspective: 800 }}
+          className="relative overflow-hidden bg-brand-navy/10 border border-brand-navy/30 rounded-2xl p-4 epoxy-gloss shadow-2xs"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2.5 rounded-xl bg-surface border border-brand-navy/30 text-brand-navy dark:text-blue-300 flex-shrink-0 shadow-elevation-1">
+                <Package className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-brand-navy dark:text-blue-400 block">
+                  RECOMMENDED PRODUCT SPECIFICATION
+                </span>
+                <h3 className="text-base font-extrabold text-text-primary truncate">
+                  {lead.product}
+                </h3>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-brand-navy/30 bg-surface text-brand-navy dark:text-blue-300 flex-shrink-0 shadow-2xs">
+              ColourPlus OEM
             </span>
           </div>
-        ))}
+        </motion.div>
+      )}
+
+      {/* 3. FACILITY SECTOR & EXTRACTED WHATSAPP EVIDENCE */}
+      <div className="bg-surface-subtle border border-border-base rounded-2xl p-4 space-y-3 shadow-2xs">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-surface border border-border-base flex-shrink-0 shadow-2xs">
+              {getFlooringAreaIcon(lead.flooring_category)}
+            </div>
+            <div>
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-text-tertiary block">
+                FACILITY SECTOR CLASSIFICATION
+              </span>
+              <h3 className="text-sm font-black text-text-primary flex items-center gap-2">
+                <span>{lead.flooring_category || 'Industrial Sector'}</span>
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {lead.flooring_area?.sub_type && (
+          <div className="text-xs text-text-secondary font-medium bg-surface px-3 py-1.5 rounded-lg border border-border-subtle flex items-center justify-between shadow-2xs">
+            <span className="text-text-tertiary font-semibold">Facility Specifics:</span>
+            <span className="text-text-primary font-bold">{lead.flooring_area.sub_type}</span>
+          </div>
+        )}
+
+        {lead.flooring_area?.source_message && (
+          <div className="bg-surface p-3 rounded-xl border border-border-subtle space-y-1 shadow-2xs">
+            <div className="flex items-center justify-between text-[10px] font-semibold text-text-tertiary">
+              <span className="flex items-center gap-1 text-brand-green font-bold">
+                <MessageSquare className="w-3 h-3" /> WhatsApp Quote Evidence
+              </span>
+              {lead.flooring_area.confidence && (
+                <span className="text-brand-green font-mono font-bold">
+                  {(lead.flooring_area.confidence * 100).toFixed(0)}% Match
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-text-primary italic font-medium leading-relaxed">
+              "{lead.flooring_area.source_message}"
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* 4. CAPTURED BY THE CONVERSATION (FIELD LIST) */}
+      {/* 4. EXTRACTED TECHNICAL FIELDS LIST */}
       <FieldList
         fields={lead.fields}
         onAddField={(k, v) => onAddField(lead.id, k, v)}
       />
 
-      {/* 5. NEXT ACTION & STAGE PROGRESSION */}
-      <div className="pt-2 space-y-4 border-t border-[#1f2d3f]">
-        <NextAction
-          action={lead.next_action}
-          onExecuteAction={onOpenConfirmVisit}
-        />
+      {/* 5. ACTION BUTTONS: TAKEOVER CHAT | ASSIGN LEAD | SITE BOOKING */}
+      <div className="grid grid-cols-3 gap-2.5 pt-2">
+        {lead.ai_active ? (
+          <Button
+            variant="brand"
+            size="sm"
+            onClick={() => onToggleAi?.(false)}
+            leftIcon={<Bot className="w-3.5 h-3.5 text-blue-200" />}
+            className="w-full text-xs"
+            title="Take over chat from AI"
+          >
+            Takeover
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onToggleAi?.(true)}
+            leftIcon={<UserCheck className="w-3.5 h-3.5 text-brand-green" />}
+            className="w-full text-xs"
+            title="Hand back chat to AI"
+          >
+            Hand to AI
+          </Button>
+        )}
 
-        <StageProgress
-          currentStage={lead.stage}
-          onSelectStage={(st) => onSelectStage(st)}
-        />
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onOpenAssignModal}
+          leftIcon={<UserPlus className="w-3.5 h-3.5 text-brand-navy dark:text-blue-400" />}
+          className="w-full text-xs"
+          title="Assign Lead"
+        >
+          Assign
+        </Button>
+
+        <Button
+          variant="success"
+          size="sm"
+          onClick={onOpenConfirmVisit}
+          leftIcon={<CalendarCheck className="w-3.5 h-3.5 text-white" />}
+          className="w-full text-xs"
+          title="Schedule Site Visit"
+        >
+          Site Visit
+        </Button>
       </div>
 
-      {/* 6. ACTION BUTTONS */}
-      <div className="grid grid-cols-2 gap-2 pt-2">
-        <button
-          onClick={onOpenConfirmVisit}
-          className="flex items-center justify-center space-x-1.5 bg-[#0f3f8a] hover:bg-[#154fb0] text-white py-2.5 rounded-full text-xs font-semibold transition shadow-sm"
-        >
-          <CalendarCheck className="w-4 h-4" />
-          <span>Confirm Site Visit</span>
-        </button>
+      {/* 6. QUALIFICATION SCORE SUMMARY WITH CIRCULAR GAUGE & 5 FACTOR BARS */}
+      <div className="pt-4 border-t border-border-subtle space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-[11px] font-mono font-bold tracking-widest uppercase text-text-tertiary">
+            QUALIFICATION BREAKDOWN
+          </h4>
+          <span className="text-xs font-mono font-bold text-text-primary">
+            Overall Score: <strong className="text-sm">{lead.score}/100</strong>
+          </span>
+        </div>
 
-        <button
-          onClick={onOpenAddNote}
-          className="flex items-center justify-center space-x-1.5 bg-[#0a1018] hover:bg-[#162232] text-white border border-[#1f2d3f] py-2.5 rounded-full text-xs font-semibold transition"
-        >
-          <StickyNote className="w-4 h-4 text-amber-400" />
-          <span>Add Note</span>
-        </button>
+        <div className="bg-surface-subtle border border-border-base rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs">
+          {/* Circular Gauge & Reason Quote */}
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <ScoreGauge score={lead.score} funnel={lead.funnel} size={94} strokeWidth={8} />
+
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <Badge variant={lead.funnel === 'HOT' ? 'hot' : lead.funnel === 'WARM' ? 'warm' : 'nurture'} size="xs">
+                  {lead.funnel.replace('_', ' ')}
+                </Badge>
+                <span className="text-xs font-semibold text-text-secondary">
+                  Confidence: <strong className="text-text-primary">{(lead.confidence * 100).toFixed(0)}%</strong>
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary italic leading-relaxed bg-surface p-2.5 rounded-xl border border-border-subtle">
+                "{lead.reason}"
+              </p>
+            </div>
+          </div>
+
+          {/* 5-Factor Staggered Progress Bars */}
+          <div className="space-y-2.5 pt-2 border-t border-border-subtle">
+            {factorList.map((item, idx) => (
+              <ProgressBar
+                key={item.label}
+                label={item.label}
+                value={item.val}
+                max={item.max}
+                color={item.color}
+                delay={idx * 0.08}
+                height={5}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
     </div>

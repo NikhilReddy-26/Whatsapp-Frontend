@@ -34,6 +34,46 @@ export interface NextAction {
   type?: 'visit' | 'call' | 'quote' | 'review' | 'manual';
 }
 
+export type FlooringAreaCategory =
+  | 'Factory & Industrial'
+  | 'Pharma & Cleanroom'
+  | 'Warehouse & Logistics'
+  | 'Commercial & Terrace'
+  | 'Cold Storage & Food'
+  | 'Household & Residential'
+  | 'Automobile & Garages'
+  | 'Other / General'
+  | (string & {});
+
+export const COLOURPLUS_PRODUCTS = [
+  'Epoxy Floor Coating',
+  'Epoxy Self-Leveling – Matt Finish',
+  'Anti-Skid Coating Flooring',
+  'ESD Coating Flooring',
+  'Epoxy Matt Finish Flooring',
+  'High-Build Epoxy Mortar',
+  'Epoxy Polyurethane (EPU) Coating',
+  'Polyurethane Coating',
+  'Dielectric Insulation Flooring',
+  'Polycrete Flooring',
+  'Wall Coating',
+  'Waterproofing',
+  'Anti-Corrosive Coating',
+  'Cementitious Underlay',
+  'Coving',
+  'Marking (Yellow / White)',
+] as const;
+
+export type ProductType = (typeof COLOURPLUS_PRODUCTS)[number] | (string & {});
+
+export interface FlooringAreaInfo {
+  category: FlooringAreaCategory;
+  sub_type?: string;
+  source_message: string;
+  confidence: number;
+  extracted_at?: string;
+}
+
 export interface Lead {
   id: string;
   whatsapp_number: string;
@@ -56,6 +96,9 @@ export interface Lead {
   unreplied_hours?: number;
   created_at: string;
   updated_at: string;
+  flooring_category?: FlooringAreaCategory;
+  flooring_area?: FlooringAreaInfo;
+  product?: ProductType;
 }
 
 export type MessageSender = 'customer' | 'ai' | 'human' | 'system';
@@ -137,6 +180,7 @@ export interface KpiData {
   closed_leads: number;
   average_score: number;
   cost_per_lead: string;
+  assigned_leads?: number;
 }
 
 export interface CRMSettings {
@@ -149,7 +193,122 @@ export interface CRMSettings {
   ai_mode: 'auto' | 'hybrid' | 'manual';
   auto_assign_hot: boolean;
   unreplied_warning_threshold_hours: number;
-  whatsapp_business_number: string;
+  products: string[];
+  states: string[];
+  facility_sectors: string[];
 }
 
-export type ActivePageView = 'desk' | 'appointments' | 'followups' | 'simulator' | 'settings';
+export type ActivePageView = 'desk' | 'analytics' | 'appointments' | 'channel_partners' | 'applicators' | 'simulator' | 'settings';
+
+export interface CampaignAnalyticsMetric {
+  campaign: string;
+  platform: 'Google Search' | 'Google Ads' | 'Meta Ads' | 'LinkedIn' | 'Direct Inbound' | 'WhatsApp Direct';
+  total_leads: number;
+  delivery_rate: number;
+  read_rate: number;
+  reply_rate: number;
+  click_rate: number;
+  hot_leads: number;
+  warm_leads: number;
+  nurture_leads: number;
+  out_of_scope_leads: number;
+  avg_score: number;
+  conversion_rate: number;
+  cost_per_lead: number;
+  est_pipeline_value: number;
+  recommendation: 'SCALE_UP' | 'MAINTAIN' | 'OPTIMIZE_COPY' | 'PAUSE_REVISE';
+  recommendation_text: string;
+  peak_hours: string;
+}
+
+export interface HourlyLeadBucket {
+  hour_label: string;
+  hour_num: number;
+  leads_count: number;
+  intensity: 'low' | 'moderate' | 'high' | 'peak';
+  percentage: number;
+  recommended_action: string;
+}
+
+export interface DayOfWeekTrend {
+  day: string;
+  lead_count: number;
+  qualification_rate: number;
+  is_peak: boolean;
+}
+
+export interface Territory {
+  territoryId: string;
+  state: string;
+  priorityTier: string;
+  territoryName: string;
+  cities: string[];
+  cityCount: number;
+  demandDrivers: string;
+}
+
+export interface ChannelPartner {
+  id: string;
+  name: string;
+  role: string;
+  email?: string;
+  state: string;
+  whatsapp_number: string;
+  territory_id?: string;
+  territory_name?: string;
+  cities?: string[];
+  priority_tier?: string;
+  demand_drivers?: string;
+  assigned_lead_count?: number;
+}
+
+export interface ChannelPartnerLead {
+  id: string;
+  firm_name: string;
+  contact_person: string;
+  whatsapp_number: string;
+  email?: string;
+  city: string;
+  state: string;
+  campaign: string;
+  business_profile: string;
+  warehouse_sqft?: number;
+  dealers_network_count?: number;
+  investment_capacity: string;
+  applied_at: string;
+  status: 'New Inquiry' | 'In Screening' | 'Approved' | 'Rejected';
+  notes?: string;
+}
+
+export interface Applicator {
+  id: string;
+  name: string;
+  agency: string;
+  specialization: string;
+  city: string;
+  state: string;
+  phone: string;
+  experienceYears: number;
+  rating: number;
+  verified: boolean;
+}
+
+export interface ApplicatorLead {
+  id: string;
+  firm_name: string;
+  master_contractor: string;
+  whatsapp_number: string;
+  city: string;
+  state: string;
+  campaign: string;
+  specialization: string;
+  crew_size: number;
+  experience_years: number;
+  machinery_equipment: string;
+  weekly_capacity_sqft: string;
+  applied_at: string;
+  status: 'New Application' | 'Skill Audit Pending' | 'Certified' | 'Rejected';
+  notes?: string;
+}
+
+

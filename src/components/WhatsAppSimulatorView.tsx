@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Send, Bot, User, CheckCheck, RefreshCw, Sparkles, MapPin, PhoneCall, ExternalLink } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { Send, Bot, User, CheckCheck, RefreshCw, Sparkles, MapPin, PhoneCall, ExternalLink, Factory, Warehouse, Building2, Snowflake, Home, Car, FlaskConical, Layers } from 'lucide-react';
 import { Lead, Message } from '../types/crm';
+import { AnimatedText } from './ui/AnimatedText';
+import { perspectiveCardIn } from '../lib/motion';
 
 interface WhatsAppSimulatorViewProps {
   leads: Lead[];
@@ -17,15 +20,19 @@ export const WhatsAppSimulatorView: React.FC<WhatsAppSimulatorViewProps> = ({
   onSimulateCustomerMessage,
   onSelectLead,
 }) => {
+  const shouldReduceMotion = useReducedMotion();
   const selectedLead = activeLead || leads[0];
   const [custInput, setCustInput] = useState('');
   const [isSending, setIsSending] = useState(false);
 
   const presetMessages = [
-    'Namaskara, namg 15,000 sq ft epoxy coating bekagide, site Hosur alli ide',
-    'What is the price per sq ft for 8000 sq ft terrace waterproofing in Whitefield?',
-    'Namma RCB match ticket yavaga ide sir?',
-    'We need WHO-GMP compliant antibacterial cleanroom PU floor for pharma unit in Peenya',
+    '🏭 Factory: Namaskara, namg 15,000 sq ft epoxy coating bekagide for CNC factory floor in Hosur',
+    '🧪 Cleanroom: We need WHO-GMP compliant antibacterial cleanroom PU floor for pharma unit in Peenya',
+    '📦 Warehouse: What is the rate for 40,000 sq ft logistics warehouse concrete dust-proofing hardener?',
+    '🏢 Commercial Terrace: We have rain water leakage in our 8,000 sq ft commercial terrace in Whitefield',
+    '❄️ Cold Storage: Need -25°C thermal shock resistant polyurethane screed for seafood cold storage plant',
+    '🚗 Auto Workshop: Setting up automobile workshop bay and service station 12,000 sq ft with oil resistance',
+    '🏠 Household Paint: House bedroom paint ideya and RCB cricket match ticket ideya sir?'
   ];
 
   const handleSend = async (textToSend: string) => {
@@ -37,15 +44,24 @@ export const WhatsAppSimulatorView: React.FC<WhatsAppSimulatorViewProps> = ({
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* HEADER */}
-      <div className="bg-brand-panel border border-brand-border rounded-[18px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div
+        variants={perspectiveCardIn}
+        initial={shouldReduceMotion ? undefined : 'initial'}
+        animate="animate"
+        className="bg-brand-panel border border-brand-border rounded-[18px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-elevation-1"
+      >
         <div>
           <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
             <span>Interactive Testing Environment</span>
           </div>
-          <h2 className="text-2xl font-black text-brand-text">WhatsApp AI Engine Simulator</h2>
+          <AnimatedText
+            text="WhatsApp AI Engine Simulator"
+            as="h2"
+            className="text-2xl font-black text-brand-text"
+          />
           <p className="text-xs text-brand-muted mt-1">
             Simulate sending WhatsApp messages as a customer. Watch the AI Qualification Engine calculate score, extract technical fields, and update the CRM live!
           </p>
@@ -66,13 +82,18 @@ export const WhatsAppSimulatorView: React.FC<WhatsAppSimulatorViewProps> = ({
             ))}
           </select>
         </div>
-      </div>
+      </motion.div>
 
       {/* TWO COLUMN SIMULATOR LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT 7 COLS: WHATSAPP MOBILE PHONE UI */}
-        <div className="lg:col-span-7 bg-[#0b141a] border border-[#202c33] rounded-[24px] overflow-hidden flex flex-col h-[650px] shadow-2xl relative">
+        <motion.div
+          variants={perspectiveCardIn}
+          initial={shouldReduceMotion ? undefined : 'initial'}
+          animate="animate"
+          className="lg:col-span-7 bg-[#0b141a] border border-[#202c33] rounded-[24px] overflow-hidden flex flex-col h-[650px] shadow-2xl relative"
+        >
           
           {/* FAKE WHATSAPP TOP BAR */}
           <div className="bg-[#202c33] px-4 py-3 flex items-center justify-between text-white border-b border-[#2a3942]">
@@ -174,10 +195,16 @@ export const WhatsAppSimulatorView: React.FC<WhatsAppSimulatorViewProps> = ({
               {isSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
-        </div>
+        </motion.div>
 
         {/* RIGHT 5 COLS: LIVE CRM ENGINE DIAGNOSTICS */}
-        <div className="lg:col-span-5 bg-brand-panel border border-brand-border rounded-[24px] p-5 space-y-4 h-[650px] overflow-y-auto">
+        <motion.div
+          variants={perspectiveCardIn}
+          initial={shouldReduceMotion ? undefined : 'initial'}
+          animate="animate"
+          transition={{ delay: 0.1 }}
+          className="lg:col-span-5 bg-brand-panel border border-brand-border rounded-[24px] p-5 space-y-4 h-[650px] overflow-y-auto shadow-elevation-1"
+        >
           <div className="flex items-center justify-between border-b border-brand-border pb-3">
             <h3 className="font-bold text-sm text-brand-text flex items-center gap-1.5">
               <Bot className="w-4 h-4 text-blue-400" />
@@ -198,11 +225,41 @@ export const WhatsAppSimulatorView: React.FC<WhatsAppSimulatorViewProps> = ({
                   </span>
                 </div>
                 <p className="text-brand-muted text-[11px]">
-                  Funnel Status: <strong className="text-brand-text">{selectedLead.funnel}</strong> • Stage: {selectedLead.stage}
+                  Funnel Status: <strong className="text-brand-text">{selectedLead.funnel}</strong>
                 </p>
                 <p className="text-brand-text text-[11px] italic">
                   "{selectedLead.reason}"
                 </p>
+              </div>
+
+              {/* LIVE FLOORING AREA CLASSIFICATION (EXTRACTED FROM CHAT) */}
+              <div className="bg-[#0b131f] p-3.5 rounded-xl border border-blue-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Factory className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Flooring Area Categorization</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm text-white">
+                    {selectedLead.flooring_category || 'Industrial Sector'}
+                  </span>
+                  {selectedLead.flooring_area?.confidence && (
+                    <span className="text-xs text-emerald-400 font-mono font-bold">
+                      {(selectedLead.flooring_area.confidence * 100).toFixed(0)}% Confidence
+                    </span>
+                  )}
+                </div>
+                {selectedLead.flooring_area?.sub_type && (
+                  <p className="text-[11px] text-slate-300">
+                    <strong className="text-slate-400">Facility Type:</strong> {selectedLead.flooring_area.sub_type}
+                  </p>
+                )}
+                {selectedLead.flooring_area?.source_message && (
+                  <div className="bg-[#0a1018] p-2 rounded-lg border border-[#1f2d3f] text-[11px] text-slate-300 italic">
+                    💬 "{selectedLead.flooring_area.source_message}"
+                  </div>
+                )}
               </div>
 
               {/* Extracted Fields */}
@@ -226,7 +283,7 @@ export const WhatsAppSimulatorView: React.FC<WhatsAppSimulatorViewProps> = ({
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
       </div>
     </div>
