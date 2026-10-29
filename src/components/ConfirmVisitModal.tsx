@@ -17,8 +17,9 @@ interface ConfirmVisitModalProps {
     time: string;
     location: string;
     engineer: string;
+    inspection_objectives: string;
     notes?: string;
-  }) => void;
+  }) => Promise<void> | void;
 }
 
 export const ConfirmVisitModal: React.FC<ConfirmVisitModalProps> = ({
@@ -32,21 +33,36 @@ export const ConfirmVisitModal: React.FC<ConfirmVisitModalProps> = ({
   const [time, setTime] = useState('11:00 AM');
   const [engineer, setEngineer] = useState(lead?.assigned_to || 'Vikram Mehta (Senior Sales Manager)');
   const [location, setLocation] = useState(lead?.location.address || lead?.location.city || '');
-  const [notes, setNotes] = useState('Inspect concrete substrate moisture %, surface hardness, and coving junctions.');
+  const [objectives, setObjectives] = useState('Inspect concrete substrate moisture %, surface hardness, and coving junctions.');
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lead) return;
-    onConfirmVisit({
-      lead_id: lead.id,
-      lead_name: lead.name,
-      company: lead.company,
-      date,
-      time,
-      location,
-      engineer,
-      notes,
-    });
+    setIsSubmitting(true);
+    try {
+      await onConfirmVisit({
+        lead_id: lead.id,
+        lead_name: lead.name,
+        company: lead.company,
+        date,
+        time,
+        location,
+        engineer,
+        inspection_objectives: objectives,
+        notes: notes.trim() || undefined,
+      });
+    } catch (err) {
+      toast({
+        title: 'Could Not Book Site Visit',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+      });
+      return;
+    } finally {
+      setIsSubmitting(false);
+    }
     toast({
       title: 'Site Visit Confirmed',
       message: `Technical audit booked for ${lead.name} on ${date} at ${time}.`,
@@ -127,8 +143,20 @@ export const ConfirmVisitModal: React.FC<ConfirmVisitModalProps> = ({
           <label className="font-bold text-text-secondary block mb-1">Inspection Objectives & Substrate Testing</label>
           <textarea
             rows={2}
+            value={objectives}
+            onChange={(e) => setObjectives(e.target.value)}
+            className="w-full bg-surface-subtle border border-border-base rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-brand-navy"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="font-bold text-text-secondary block mb-1">Internal Notes (optional)</label>
+          <textarea
+            rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Client requested morning slot before factory operations start"
             className="w-full bg-surface-subtle border border-border-base rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-brand-navy"
           />
         </div>
@@ -145,6 +173,7 @@ export const ConfirmVisitModal: React.FC<ConfirmVisitModalProps> = ({
             type="submit"
             variant="success"
             size="sm"
+            disabled={isSubmitting}
             leftIcon={<CheckCircle2 className="w-4 h-4" />}
             className="rounded-xl px-5"
           >

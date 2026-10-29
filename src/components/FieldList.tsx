@@ -86,7 +86,11 @@ export const FieldList: React.FC<FieldListProps> = ({ fields, onAddField }) => {
       {/* FIELD ROWS WITH STAGGERED REVEAL & DRAW-ON CHECK */}
       <div className="divide-y divide-border-subtle text-xs">
         {fields.map((f, i) => {
-          const isHighConf = f.confidence >= 0.9;
+          const rawConf = f.confidence;
+          const hasConfidence = typeof rawConf === 'number' && !isNaN(rawConf);
+          const normalizedConf = hasConfidence ? (rawConf > 1 ? rawConf / 100 : rawConf) : null;
+          const isHighConf = normalizedConf !== null ? normalizedConf >= 0.9 : true;
+          const percentDisplay = normalizedConf !== null ? `${Math.round(normalizedConf * 100)}%` : null;
 
           return (
             <motion.div
@@ -115,16 +119,18 @@ export const FieldList: React.FC<FieldListProps> = ({ fields, onAddField }) => {
                   {f.value}
                 </span>
 
-                <span
-                  className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                    isHighConf
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                  }`}
-                  title={`AI Confidence: ${(f.confidence * 100).toFixed(0)}%`}
-                >
-                  {(f.confidence * 100).toFixed(0)}%
-                </span>
+                {percentDisplay && (
+                  <span
+                    className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      isHighConf
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                    }`}
+                    title={`AI Confidence: ${percentDisplay}`}
+                  >
+                    {percentDisplay}
+                  </span>
+                )}
               </div>
             </motion.div>
           );

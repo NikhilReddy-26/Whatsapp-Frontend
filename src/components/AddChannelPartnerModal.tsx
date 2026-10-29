@@ -28,7 +28,7 @@ import { useToast } from '../context/ToastContext';
 interface AddChannelPartnerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddPartner: (partner: Omit<ChannelPartner, 'id'> & { id?: string }) => void;
+  onAddPartner: (partner: Omit<ChannelPartner, 'id'> & { id?: string }) => Promise<void> | void;
   availableStates?: string[];
   existingPartners?: ChannelPartner[];
 }
@@ -189,7 +189,7 @@ export const AddChannelPartnerModal: React.FC<AddChannelPartnerModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalPartnerId = partnerId.trim().toUpperCase() || computeNextId(existingPartners);
     const finalTerritoryName = territoryName.trim() || `${state} Territory`;
@@ -213,19 +213,28 @@ export const AddChannelPartnerModal: React.FC<AddChannelPartnerModalProps> = ({
       return;
     }
 
-    onAddPartner({
-      id: finalPartnerId,
-      name: finalName,
-      role: role.trim() || `Channel Partner (${priorityTier.split(' - ')[0]})`,
-      email: email.trim() || `${finalPartnerId.toLowerCase()}@channelpartner.colourplus.co.in`,
-      state: state.trim(),
-      whatsapp_number: whatsappNumber.trim(),
-      territory_id: finalPartnerId,
-      territory_name: finalTerritoryName,
-      cities: cities.length > 0 ? cities : [finalTerritoryName],
-      priority_tier: priorityTier,
-      demand_drivers: demandDrivers.trim(),
-    });
+    try {
+      await onAddPartner({
+        id: finalPartnerId,
+        name: finalName,
+        role: role.trim() || `Channel Partner (${priorityTier.split(' - ')[0]})`,
+        email: email.trim() || `${finalPartnerId.toLowerCase()}@channelpartner.colourplus.co.in`,
+        state: state.trim(),
+        whatsapp_number: whatsappNumber.trim(),
+        territory_id: finalPartnerId,
+        territory_name: finalTerritoryName,
+        cities: cities.length > 0 ? cities : [finalTerritoryName],
+        priority_tier: priorityTier,
+        demand_drivers: demandDrivers.trim(),
+      });
+    } catch (err) {
+      toast({
+        title: 'Could Not Register Partner',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+      });
+      return;
+    }
 
     toast({
       title: 'Channel Partner Registered',

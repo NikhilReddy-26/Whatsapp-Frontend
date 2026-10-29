@@ -1,4 +1,9 @@
-import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory } from '../types/crm';
+import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign } from '../types/crm';
+import { API_ENDPOINTS, USE_MOCK_API } from './endpoints';
+import type { BackendLead, BackendSiteVisit, BackendPartner, BackendCampaign, Paginated, UpdateSiteVisitPayload, LeadListQuery } from './endpoints';
+import { http } from './http';
+import { mapLead, mapSiteVisit, mapPartner, toPartnerPayload } from './mappers';
+import { backendSampleCampaigns } from '../data/backendSampleLeads';
 import { initialLeads } from '../data/leads';
 import { initialMessages } from '../data/messages';
 import { initialKpis } from '../data/kpis';
@@ -38,6 +43,8 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 }
 
 function saveToStorage<T>(key: string, value: T): void {
+  // Backend-owned data is never cached into the demo database
+  if (!USE_MOCK_API && (key === DB_STORAGE_KEYS.LEADS || key === DB_STORAGE_KEYS.CHANNEL_PARTNERS)) return;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem(key, JSON.stringify(value));
@@ -47,13 +54,18 @@ function saveToStorage<T>(key: string, value: T): void {
   }
 }
 
-// In-Memory store simulation backed by persistent local database
-let leadsStore: Lead[] = loadFromStorage(DB_STORAGE_KEYS.LEADS, [...initialLeads]);
-// Ensure we always have full updated leads loaded
-if (!leadsStore || leadsStore.length < initialLeads.length) {
-  leadsStore = [...initialLeads];
-  saveToStorage(DB_STORAGE_KEYS.LEADS, leadsStore);
+// In-Memory store. In mock mode it is seeded from demo data + localStorage;
+// in live mode it caches what the backend returned (plus local-only edits, see localLeadPatches).
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const rawStored = window.localStorage.getItem(DB_STORAGE_KEYS.LEADS);
+    if (rawStored && rawStored.includes('lead-mh-001')) {
+      window.localStorage.removeItem(DB_STORAGE_KEYS.LEADS);
+    }
+  } catch {}
 }
+
+let leadsStore: Lead[] = USE_MOCK_API ? loadFromStorage(DB_STORAGE_KEYS.LEADS, [...initialLeads]) : [];
 
 // Ensure any stale cached leads with slash in state (e.g. 'Karnataka / Kerala' or 'Tamil Nadu / KA') are cleaned up
 let leadsStoreMigrated = false;
@@ -101,9 +113,44 @@ if (leadsStoreMigrated) {
   saveToStorage(DB_STORAGE_KEYS.LEADS, leadsStore);
 }
 
-let messagesStore: Record<string, Message[]> = { ...initialMessages };
+let messagesStore: Record<string, Message[]> = USE_MOCK_API ? { ...initialMessages } : {};
 let kpisStore: KpiData = { ...initialKpis };
-let appointmentsStore: Appointment[] = [...initialAppointments];
+let appointmentsStore: Appointment[] = USE_MOCK_API ? [...initialAppointments] : [];
+
+// Live mode: edits the backend has no endpoint for yet (assignment, stage, AI toggle, fields)
+// are kept here and re-applied whenever leads are re-fetched, so they survive a refresh of the list.
+const localLeadPatches: Record<string, Partial<Lead>> = {};
+let leadsLoadedFromBackend = false;
+
+function commitLead(updated: Lead, patch: Partial<Lead>): Lead {
+  leadsStore = leadsStore.map((l) => (l.id === updated.id ? updated : l));
+  if (!USE_MOCK_API) {
+    localLeadPatches[updated.id] = { ...localLeadPatches[updated.id], ...patch };
+  }
+  return { ...updated };
+}
+
+function withLocalPatch(lead: Lead): Lead {
+  const patch = localLeadPatches[lead.id];
+  return patch ? { ...lead, ...patch } : lead;
+}
+
+async function fetchAllPages<T>(url: string, query: Record<string, string | number> = {}): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 1; ; page++) {
+    const res = await http.get<Paginated<T>>(url, { ...query, page, limit: 100 });
+    items.push(...(res.items || []));
+    if (page >= (res.pagination?.total_pages || 1)) return items;
+  }
+}
+
+function nextPartnerCode(): string {
+  const highestNum = channelPartnersStore.reduce((max, cp) => {
+    const m = cp.id.match(/CP-(\d+)/i);
+    return m ? Math.max(max, parseInt(m[1], 10)) : max;
+  }, 0);
+  return `CP-${String(highestNum + 1).padStart(3, '0')}`;
+}
 let followupsStore: Followup[] = [...initialFollowups];
 
 // Hydrate settings ensuring any new fields (products, states, facility_sectors) are safely merged
@@ -134,10 +181,21 @@ if (loadedSettings?.states?.some((s) => s.includes('/'))) {
   saveToStorage(DB_STORAGE_KEYS.SETTINGS, settingsStore);
 }
 
+const DELETED_PARTNERS_KEY = 'colourplus_deleted_partner_ids';
+let deletedPartnerIdsStore: string[] = loadFromStorage(DELETED_PARTNERS_KEY, []);
+
+// Load channel partners store with fallback to all 100 initial territories
 let channelPartnersStore: ChannelPartner[] = loadFromStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, [...initialChannelPartners]);
-// Ensure all 100 territories/channel partners are always loaded
+// Ensure all 100 territories/channel partners are always loaded (both mock and live dev modes)
 if (!channelPartnersStore || channelPartnersStore.length < initialChannelPartners.length) {
-  channelPartnersStore = [...initialChannelPartners];
+  const existingMap = new Map((channelPartnersStore || []).map((p) => [p.id.toUpperCase(), p]));
+  const activeDeleted = new Set(deletedPartnerIdsStore.map((id) => id.toUpperCase()));
+  channelPartnersStore = initialChannelPartners
+    .filter((init) => !activeDeleted.has(init.id.toUpperCase()))
+    .map((init) => {
+      const existing = existingMap.get(init.id.toUpperCase());
+      return existing ? { ...init, ...existing } : init;
+    });
   saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, channelPartnersStore);
 }
 
@@ -159,34 +217,82 @@ export interface AssignLeadOptions {
  */
 export const crmApi = {
   // --- LEADS ---
-  async getLeads(): Promise<Lead[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve([...leadsStore]), 100);
-    });
+  // GET /api/v1/leads (all pages). Pass refresh=true to re-fetch; query for server-side filter params.
+  async getLeads(options?: { refresh?: boolean; query?: LeadListQuery }): Promise<Lead[]> {
+    if (USE_MOCK_API) {
+      return new Promise((resolve) => {
+        setTimeout(() => resolve([...leadsStore]), 100);
+      });
+    }
+    try {
+      if (options?.refresh || !leadsLoadedFromBackend) {
+        const queryParams = options?.query ? { ...options.query } : {};
+        const items = await fetchAllPages<BackendLead>(API_ENDPOINTS.LEADS, queryParams as Record<string, string | number>);
+        if (items && items.length > 0) {
+          leadsStore = items.map((b) => withLocalPatch(mapLead(b)));
+          leadsLoadedFromBackend = true;
+        } else {
+          leadsStore = [];
+        }
+      }
+    } catch (err) {
+      console.warn('[crmApi.getLeads] Backend server unreachable or returned error:', err);
+      if (!leadsLoadedFromBackend) {
+        leadsStore = [];
+      }
+    }
+    return [...leadsStore];
   },
 
+  // GET /api/v1/leads/{id} - enriched drawer record (more extracted fields than the list)
   async getLeadById(id: string): Promise<Lead | null> {
-    return new Promise((resolve) => {
-      const found = leadsStore.find((l) => l.id === id) || null;
-      setTimeout(() => resolve(found ? { ...found } : null), 50);
-    });
+    if (USE_MOCK_API) {
+      return new Promise((resolve) => {
+        const found = leadsStore.find((l) => l.id === id || l.ref_no === id) || null;
+        setTimeout(() => resolve(found ? { ...found } : null), 50);
+      });
+    }
+    try {
+      const raw = await http.get<BackendLead>(API_ENDPOINTS.LEAD_BY_ID(id));
+      if (raw) {
+        const lead = withLocalPatch(mapLead(raw));
+        leadsStore = leadsStore.some((l) => l.id === lead.id)
+          ? leadsStore.map((l) => (l.id === lead.id ? lead : l))
+          : [...leadsStore, lead];
+        return { ...lead };
+      }
+    } catch (err) {
+      console.warn(`[crmApi.getLeadById] Failed to fetch remote lead ${id}:`, err);
+    }
+    const found = leadsStore.find((l) => l.id === id || l.ref_no === id) || null;
+    return found ? { ...found } : null;
   },
 
   async updateLead(updated: Lead): Promise<Lead> {
-    return new Promise((resolve) => {
-      leadsStore = leadsStore.map((l) => (l.id === updated.id ? { ...updated, updated_at: new Date().toISOString() } : l));
-      resolve({ ...updated });
-    });
+    return commitLead({ ...updated, updated_at: new Date().toISOString() }, updated);
   },
 
+  // POST /api/v1/leads/{id}/assign - updates channel partner assignment
   async assignLead(leadId: string, assignee: string, options?: AssignLeadOptions): Promise<Lead> {
     const lead = leadsStore.find((l) => l.id === leadId);
     if (!lead) throw new Error('Lead not found');
 
     // Find channel partner by name if not passed
     const partner = options?.partner || channelPartnersStore.find((cp) => cp.name === assignee) || null;
-    const updated = { ...lead, assigned_to: assignee, updated_at: new Date().toISOString() };
-    leadsStore = leadsStore.map((l) => (l.id === leadId ? updated : l));
+    const partnerCode = partner ? partner.id : (assignee.startsWith('CP-') ? assignee.split(' ')[0] : undefined);
+
+    if (!USE_MOCK_API) {
+      try {
+        await http.post(API_ENDPOINTS.LEAD_ASSIGN(leadId), {
+          partner_code: partnerCode || assignee,
+          assigned_partner: assignee,
+        });
+      } catch (err) {
+        console.warn(`[crmApi.assignLead] Remote assignment endpoint not available, persisting locally:`, err);
+      }
+    }
+
+    const updated = commitLead({ ...lead, assigned_to: assignee, assigned_partner: assignee, updated_at: new Date().toISOString() }, { assigned_to: assignee, assigned_partner: assignee });
 
     // Construct full assignment handoff text message
     const assignmentText = formatLeadAssignmentMessage(updated, partner, assignee);
@@ -222,7 +328,18 @@ export const crmApi = {
     return Promise.resolve(updated);
   },
 
+  // POST /api/v1/leads/bulk-assign - bulk channel partner assignment
   async assignMultipleLeads(leadIds: string[], assignee: string, options?: AssignLeadOptions): Promise<Lead[]> {
+    if (!USE_MOCK_API) {
+      try {
+        await http.post(API_ENDPOINTS.LEADS_BULK_ASSIGN, {
+          lead_ids: leadIds,
+          assigned_partner: assignee,
+        });
+      } catch (err) {
+        console.warn(`[crmApi.assignMultipleLeads] Remote bulk assign failed, proceeding per-lead:`, err);
+      }
+    }
     const updatedLeads: Lead[] = [];
     for (const leadId of leadIds) {
       const updated = await this.assignLead(leadId, assignee, options);
@@ -271,12 +388,34 @@ export const crmApi = {
     return { updatedLeads, count: updatedLeads.length, assignments };
   },
 
+  // PATCH /api/v1/leads/{id}/ai-status - toggle bot vs human takeover
   async toggleAiStatus(leadId: string, aiActive: boolean): Promise<Lead> {
     const lead = leadsStore.find((l) => l.id === leadId);
     if (!lead) throw new Error('Lead not found');
-    const updated = { ...lead, ai_active: aiActive, updated_at: new Date().toISOString() };
-    leadsStore = leadsStore.map((l) => (l.id === leadId ? updated : l));
-    
+
+    if (!USE_MOCK_API) {
+      try {
+        await http.patch(API_ENDPOINTS.LEAD_AI_STATUS(leadId), {
+          ai_active: aiActive,
+          bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
+        });
+      } catch (err) {
+        console.warn(`[crmApi.toggleAiStatus] Remote AI toggle failed, updating locally:`, err);
+      }
+    }
+
+    const updated = commitLead({
+      ...lead,
+      ai_active: aiActive,
+      bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
+      needs_human: !aiActive,
+      updated_at: new Date().toISOString()
+    }, {
+      ai_active: aiActive,
+      bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
+      needs_human: !aiActive,
+    });
+
     // Log a system message in the chat
     const sysMsg: Message = {
       id: `sys-${Date.now()}`,
@@ -293,118 +432,109 @@ export const crmApi = {
     return Promise.resolve(updated);
   },
 
+  // PATCH /api/v1/leads/{id}/stage - advance pipeline stage
   async updateLeadStage(leadId: string, stage: PipelineStage): Promise<Lead> {
     const lead = leadsStore.find((l) => l.id === leadId);
     if (!lead) throw new Error('Lead not found');
-    const updated = { ...lead, stage, updated_at: new Date().toISOString() };
-    leadsStore = leadsStore.map((l) => (l.id === leadId ? updated : l));
-    return Promise.resolve(updated);
+
+    if (!USE_MOCK_API) {
+      try {
+        await http.patch(API_ENDPOINTS.LEAD_STAGE(leadId), { stage });
+      } catch (err) {
+        console.warn(`[crmApi.updateLeadStage] Remote stage update failed, updating locally:`, err);
+      }
+    }
+
+    return commitLead({ ...lead, stage, updated_at: new Date().toISOString() }, { stage });
   },
 
+  // POST /api/v1/leads/{id}/extracted-fields - append new technical field
   async addExtractedField(leadId: string, field: { key: string; value: string; confidence: number; source_message?: string }): Promise<Lead> {
     const lead = leadsStore.find((l) => l.id === leadId);
     if (!lead) throw new Error('Lead not found');
+
+    if (!USE_MOCK_API) {
+      try {
+        await http.post(API_ENDPOINTS.LEAD_EXTRACTED_FIELDS(leadId), field);
+      } catch (err) {
+        console.warn(`[crmApi.addExtractedField] Remote field post failed, updating locally:`, err);
+      }
+    }
+
     const updatedFields = [...lead.fields, { ...field, timestamp: 'Just now', is_verified: true }];
-    const updated = { ...lead, fields: updatedFields, updated_at: new Date().toISOString() };
-    leadsStore = leadsStore.map((l) => (l.id === leadId ? updated : l));
-    return Promise.resolve(updated);
+    return commitLead({ ...lead, fields: updatedFields, updated_at: new Date().toISOString() }, { fields: updatedFields });
   },
 
   async updateLeadFlooringCategory(leadId: string, category: FlooringAreaCategory, subType?: string): Promise<Lead> {
     const lead = leadsStore.find((l) => l.id === leadId);
     if (!lead) throw new Error('Lead not found');
-    lead.flooring_category = category;
-    lead.flooring_area = {
+    const flooring_area = {
       category,
       sub_type: subType || lead.flooring_area?.sub_type,
       source_message: lead.flooring_area?.source_message || 'Manually assigned by manager',
       confidence: 1.0,
       extracted_at: 'Just now'
     };
-    lead.updated_at = new Date().toISOString();
-    return Promise.resolve({ ...lead });
+    return commitLead(
+      { ...lead, flooring_category: category, flooring_area, updated_at: new Date().toISOString() },
+      { flooring_category: category, flooring_area }
+    );
   },
 
   // --- MESSAGES ---
+  // GET /api/v1/leads/{id}/messages
   async getMessages(leadId: string): Promise<Message[]> {
-    return new Promise((resolve) => {
-      let msgs = messagesStore[leadId];
-      if (!msgs || msgs.length === 0) {
-        const lead = leadsStore.find((l) => l.id === leadId);
-        if (lead) {
-          const suggestion = findSuggestedChannelPartner(lead, channelPartnersStore);
-          const territoryId = suggestion.territory ? suggestion.territory.territoryId : 'CP-001';
-          const territoryName = suggestion.territory ? suggestion.territory.territoryName : 'Metro';
-          msgs = [
-            {
-              id: `m-${leadId}-1`,
-              lead_id: leadId,
-              sender: 'customer',
-              text: `Hello, we need ${lead.product || 'Epoxy Flooring'} specification for our ${lead.flooring_category || 'industrial'} facility in ${lead.location.city}, ${lead.location.state}. Project area is approx ${lead.location.area_sqft ? lead.location.area_sqft.toLocaleString() + ' sq ft' : '15,000 sq ft'}.`,
-              type: 'text',
-              timestamp: '10:05 AM',
-            },
-            {
-              id: `m-${leadId}-2`,
-              lead_id: leadId,
-              sender: 'ai',
-              text: `Thank you for contacting ColourPlus! For your ${lead.flooring_category || 'facility'} in ${lead.location.city}, our ${lead.product || 'High-Build Epoxy'} specification offers superior chemical & mechanical wear resistance. Could you share the facility address or drop a location pin?`,
-              type: 'text',
-              timestamp: '10:06 AM',
-            },
-            {
-              id: `m-${leadId}-3`,
-              lead_id: leadId,
-              sender: 'customer',
-              text: `📍 Dropped Pin: ${lead.location.address || lead.location.city}. Project Area: ${lead.location.area_sqft ? lead.location.area_sqft.toLocaleString() + ' sq ft' : '15,000 sq ft'}.`,
-              type: 'location',
-              location_data: {
-                name: `${lead.company} Site`,
-                address: lead.location.address,
-                maps_url: lead.location.maps_link,
-              },
-              timestamp: '10:08 AM',
-            },
-            {
-              id: `m-${leadId}-4`,
-              lead_id: leadId,
-              sender: 'system',
-              text: 'SILENTLY EXTRACTED INTELLIGENCE',
-              type: 'system_note',
-              timestamp: '10:08 AM',
-              extracted_chips: [
-                { label: 'Facility Sector', value: lead.flooring_category || 'Industrial' },
-                { label: 'City & State', value: `${lead.location.city}, ${lead.location.state}` },
-                { label: 'Matched Territory', value: `${territoryId} (${territoryName})` },
-                { label: 'AI Score', value: `${lead.score}/100 (${lead.funnel})` },
-              ],
-            },
-            {
-              id: `m-${leadId}-5`,
-              lead_id: leadId,
-              sender: 'ai',
-              text: `Thank you! Your location in ${lead.location.city} is covered by our regional Channel Partner (${territoryId} - ${territoryName}). Our technical engineer can conduct an on-site moisture and substrate hardness test.`,
-              type: 'text',
-              timestamp: '10:10 AM',
-            },
-            {
-              id: `m-${leadId}-6`,
-              lead_id: leadId,
-              sender: 'customer',
-              text: `Yes, please confirm the technical site visit at earliest convenience.`,
-              type: 'text',
-              timestamp: '10:12 AM',
-            },
-          ];
-          messagesStore[leadId] = msgs;
-        } else {
-          msgs = [];
+    if (!USE_MOCK_API) {
+      try {
+        const remoteMsgs = await http.get<Message[]>(API_ENDPOINTS.LEAD_MESSAGES(leadId));
+        if (remoteMsgs && Array.isArray(remoteMsgs) && remoteMsgs.length > 0) {
+          messagesStore[leadId] = remoteMsgs;
+          return [...remoteMsgs];
         }
+      } catch (err) {
+        // Endpoint not yet implemented on remote server; fall back to store
       }
-      setTimeout(() => resolve([...msgs]), 50);
-    });
+    }
+
+    const lead = leadsStore.find((l) => l.id === leadId || l.ref_no === leadId);
+    let msgs = messagesStore[leadId] || (lead?.ref_no ? messagesStore[lead.ref_no] : undefined) || initialMessages[leadId] || (lead?.ref_no ? initialMessages[lead.ref_no] : undefined);
+
+    if (!msgs || msgs.length === 0) {
+      const quote = lead?.quote_text || lead?.flooring_area?.source_message;
+      if (quote) {
+        msgs = [
+          {
+            id: `m-${leadId}-quote`,
+            lead_id: leadId,
+            sender: 'customer',
+            text: quote,
+            type: 'text',
+            timestamp: new Date(lead?.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+          {
+            id: `sys-${leadId}-note`,
+            lead_id: leadId,
+            sender: 'system',
+            text: `Enquiry captured from ${lead?.company || lead?.name || 'Customer'}. Sector: ${lead?.facility_sector || lead?.flooring_category || 'Industrial'}. Area: ${lead?.location.area_sqft ? lead.location.area_sqft.toLocaleString() + ' sq ft' : 'N/A'}.`,
+            type: 'system_note',
+            timestamp: '',
+            extracted_chips: [
+              { label: 'Product Required', value: lead?.product || 'Epoxy Flooring' },
+              { label: 'Facility Sector', value: lead?.facility_sector || lead?.flooring_category || 'Factory & Industrial' },
+              { label: 'Location', value: `${lead?.location.city || ''}, ${lead?.location.state || ''}` },
+              { label: 'AI Score', value: `${lead?.score || 0}/100 (${lead?.funnel || 'HOT'})` },
+            ],
+          },
+        ];
+        messagesStore[leadId] = msgs;
+      } else {
+        msgs = [];
+      }
+    }
+    return Promise.resolve([...msgs]);
   },
 
+  // POST /api/v1/leads/{id}/messages
   async sendMessage(leadId: string, text: string, sender: 'customer' | 'human' | 'ai' | 'system' = 'human'): Promise<Message> {
     const newMsg: Message = {
       id: `msg-${Date.now()}`,
@@ -414,6 +544,14 @@ export const crmApi = {
       type: 'text',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+
+    if (!USE_MOCK_API) {
+      try {
+        await http.post(API_ENDPOINTS.LEAD_MESSAGES(leadId), { text, sender });
+      } catch (err) {
+        console.warn(`[crmApi.sendMessage] Remote message endpoint unavailable, saved locally:`, err);
+      }
+    }
 
     messagesStore[leadId] = [...(messagesStore[leadId] || []), newMsg];
     
@@ -557,47 +695,66 @@ export const crmApi = {
 
   // --- KPIS ---
   async getKpis(): Promise<KpiData> {
-    return new Promise((resolve) => {
-      const unansweredCount = leadsStore.filter((l) => (l.unreplied_hours || 0) >= settingsStore.unreplied_warning_threshold_hours).length;
-      const hotCount = leadsStore.filter((l) => l.funnel === 'HOT').length;
-      const visitsCount = appointmentsStore.filter((a) => a.status === 'scheduled').length;
-      const closedCount = leadsStore.filter((l) => l.stage === 'Won').length + 12;
-      const avgScore = Math.round((leadsStore.reduce((acc, l) => acc + l.score, 0) / leadsStore.length) * 10) / 10;
-      const assignedCount = leadsStore.filter((l) =>
-        Boolean(
-          l.assigned_to &&
+    const today = new Date().toDateString();
+    const hotCount = leadsStore.filter((l) => l.funnel === 'HOT').length;
+    const unansweredCount = leadsStore.filter((l) => (l.unreplied_hours || 0) >= (settingsStore?.unreplied_warning_threshold_hours || 20)).length;
+    const visitsCount = appointmentsStore.filter((a) => a.status === 'scheduled').length;
+    const closedCount = leadsStore.filter((l) => l.stage === 'Won').length;
+    const avgScore = leadsStore.length
+      ? Math.round((leadsStore.reduce((acc, l) => acc + l.score, 0) / leadsStore.length) * 10) / 10
+      : 0;
+    const assignedCount = leadsStore.filter((l) =>
+      Boolean(
+        (l.assigned_partner && l.assigned_partner.trim() !== '') ||
+        (l.assigned_to &&
           l.assigned_to.trim() !== '' &&
           !l.assigned_to.toLowerCase().includes('unassigned') &&
-          !l.assigned_to.toLowerCase().includes('disqualification')
-        )
-      ).length;
+          !l.assigned_to.toLowerCase().includes('disqualification'))
+      )
+    ).length;
 
-      kpisStore = {
-        ...kpisStore,
-        total_leads: 142,
-        new_leads_today: kpisStore.new_leads_today || 18,
-        hot_leads: hotCount || 9,
-        unanswered_over_20h: unansweredCount,
-        site_visits_confirmed: visitsCount || 8,
-        closed_leads: closedCount || 12,
-        average_score: avgScore || 68,
-        assigned_leads: 86 + (assignedCount > 14 ? (assignedCount - 14) : 0),
-      };
-      resolve({ ...kpisStore });
-    });
+    kpisStore = {
+      total_leads: leadsStore.length,
+      new_leads_today: leadsStore.filter((l) => l.created_at && new Date(l.created_at).toDateString() === today).length,
+      hot_leads: hotCount,
+      unanswered_over_20h: unansweredCount,
+      site_visits_confirmed: visitsCount,
+      closed_leads: closedCount,
+      average_score: avgScore,
+      cost_per_lead: kpisStore.cost_per_lead || '₹850',
+      assigned_leads: assignedCount,
+    };
+    return { ...kpisStore };
   },
 
   // --- APPOINTMENTS ---
+  // GET /api/v1/site-visits
   async getAppointments(): Promise<Appointment[]> {
-    return Promise.resolve([...appointmentsStore]);
+    if (!USE_MOCK_API) {
+      const visits = await http.get<BackendSiteVisit[]>(API_ENDPOINTS.SITE_VISITS);
+      appointmentsStore = (visits || []).map((v) => mapSiteVisit(v, (id) => leadsStore.find((l) => l.id === id)));
+    }
+    return [...appointmentsStore];
   },
 
+  // POST /api/v1/leads/{id}/site-visits (backend also moves the lead to VISIT_SCHEDULED)
   async createAppointment(app: Omit<Appointment, 'id'>): Promise<Appointment> {
-    const newApp: Appointment = {
-      ...app,
-      id: `app-${Date.now()}`
-    };
-    appointmentsStore.push(newApp);
+    let newApp: Appointment;
+    if (USE_MOCK_API) {
+      newApp = { ...app, id: `app-${Date.now()}` };
+      appointmentsStore.push(newApp);
+    } else {
+      const created = await http.post<BackendSiteVisit>(API_ENDPOINTS.LEAD_SITE_VISITS(app.lead_id), {
+        visit_date: app.date,
+        time_slot: app.time,
+        field_engineer_assigned: app.engineer,
+        site_address: app.location,
+        inspection_objectives: app.inspection_objectives || app.notes || 'Site inspection',
+        notes: app.notes,
+      });
+      newApp = mapSiteVisit(created, (id) => leadsStore.find((l) => l.id === id));
+      appointmentsStore = [newApp, ...appointmentsStore];
+    }
 
     // Also update lead stage to 'Visit' if not already
     const lead = leadsStore.find((l) => l.id === app.lead_id);
@@ -612,6 +769,56 @@ export const crmApi = {
     }
 
     return Promise.resolve(newApp);
+  },
+
+  // PATCH /api/v1/site-visits/{id} - reschedule, mark completed, etc.
+  async updateAppointment(id: string, changes: UpdateSiteVisitPayload): Promise<Appointment> {
+    let updated: Appointment;
+    if (USE_MOCK_API) {
+      const existing = appointmentsStore.find((a) => a.id === id);
+      if (!existing) throw new Error('Site visit not found');
+      updated = {
+        ...existing,
+        date: changes.visit_date ?? existing.date,
+        time: changes.time_slot ?? existing.time,
+        engineer: changes.field_engineer_assigned ?? existing.engineer,
+        location: changes.site_address ?? existing.location,
+        inspection_objectives: changes.inspection_objectives ?? existing.inspection_objectives,
+        notes: changes.notes ?? existing.notes,
+        status: changes.status === 'COMPLETED' ? 'completed' : changes.status === 'CANCELLED' ? 'cancelled' : existing.status,
+      };
+    } else {
+      const res = await http.patch<BackendSiteVisit>(API_ENDPOINTS.SITE_VISIT_BY_ID(id), changes);
+      updated = mapSiteVisit(res, (leadId) => leadsStore.find((l) => l.id === leadId));
+    }
+    appointmentsStore = appointmentsStore.map((a) => (a.id === id ? updated : a));
+    return updated;
+  },
+
+  // DELETE /api/v1/site-visits/{id}
+  async deleteAppointment(id: string): Promise<boolean> {
+    if (!USE_MOCK_API) {
+      await http.delete(API_ENDPOINTS.SITE_VISIT_BY_ID(id));
+    }
+    appointmentsStore = appointmentsStore.filter((a) => a.id !== id);
+    return true;
+  },
+
+  // --- CAMPAIGNS ---
+  // GET /api/v1/campaigns?status=ACTIVE
+  async getCampaigns(): Promise<Campaign[]> {
+    if (USE_MOCK_API) {
+      return [...backendSampleCampaigns];
+    }
+    try {
+      const campaigns = await http.get<BackendCampaign[]>(API_ENDPOINTS.CAMPAIGNS);
+      if (campaigns && Array.isArray(campaigns) && campaigns.length > 0) {
+        return campaigns.map(({ id, name, code, product, status, leads_count }) => ({ id, name, code, product, status, leads_count }));
+      }
+    } catch (err) {
+      console.warn('[crmApi.getCampaigns] Remote campaign fetch failed:', err);
+    }
+    return [];
   },
 
   // --- FOLLOWUPS ---
@@ -740,35 +947,106 @@ export const crmApi = {
   // =========================================================================
   // --- CHANNEL PARTNERS / SALES REPS ---
   // =========================================================================
+  // GET /api/v1/partners (all pages, active partners only)
   async getChannelPartners(): Promise<ChannelPartner[]> {
-    return Promise.resolve([...channelPartnersStore]);
+    if (!USE_MOCK_API) {
+      try {
+        const items = await fetchAllPages<BackendPartner>(API_ENDPOINTS.PARTNERS);
+        const backendPartners = (items || []).filter((p) => p.is_active !== false).map(mapPartner);
+
+        // Merge backend partners with initialChannelPartners so that all 100 pan-India territories are present.
+        // Backend partners take precedence.
+        const backendMap = new Map(backendPartners.map((p) => [p.id.toUpperCase(), p]));
+        const activeDeleted = new Set(deletedPartnerIdsStore.map((id) => id.toUpperCase()));
+
+        const merged: ChannelPartner[] = initialChannelPartners
+          .filter((init) => !activeDeleted.has(init.id.toUpperCase()))
+          .map((init) => {
+            const remote = backendMap.get(init.id.toUpperCase());
+            return remote ? { ...init, ...remote } : init;
+          });
+
+        // Also append any new custom partners created on the backend that are not in initialChannelPartners
+        for (const bp of backendPartners) {
+          if (
+            !activeDeleted.has(bp.id.toUpperCase()) &&
+            !initialChannelPartners.some((init) => init.id.toUpperCase() === bp.id.toUpperCase())
+          ) {
+            merged.push(bp);
+          }
+        }
+
+        channelPartnersStore = merged;
+        saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, channelPartnersStore);
+      } catch (err) {
+        console.warn('[crmApi.getChannelPartners] Failed to fetch remote partners, using local store:', err);
+        if (!channelPartnersStore || channelPartnersStore.length === 0) {
+          channelPartnersStore = loadFromStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, [...initialChannelPartners]);
+        }
+      }
+    }
+    return [...channelPartnersStore];
   },
 
+  // POST /api/v1/partners
   async addChannelPartner(partner: Omit<ChannelPartner, 'id'> & { id?: string }): Promise<ChannelPartner> {
-    let partnerId = partner.id?.trim().toUpperCase();
-    if (!partnerId) {
-      const highestNum = channelPartnersStore.reduce((max, cp) => {
-        const m = cp.id.match(/CP-(\d+)/i);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
-      }, 0);
-      partnerId = `CP-${String(highestNum + 1).padStart(3, '0')}`;
+    const partnerId = partner.id?.trim().toUpperCase() || nextPartnerCode();
+
+    // If this partnerId was previously deleted, undelete it
+    if (deletedPartnerIdsStore.includes(partnerId)) {
+      deletedPartnerIdsStore = deletedPartnerIdsStore.filter((id) => id !== partnerId);
+      saveToStorage(DELETED_PARTNERS_KEY, deletedPartnerIdsStore);
+    }
+
+    if (!USE_MOCK_API) {
+      try {
+        const created = mapPartner(
+          await http.post<BackendPartner>(API_ENDPOINTS.PARTNERS, toPartnerPayload({ ...partner, id: partnerId }))
+        );
+        channelPartnersStore = [created, ...channelPartnersStore.filter((p) => p.id !== created.id)];
+        saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, channelPartnersStore);
+        return created;
+      } catch (err) {
+        console.warn('[crmApi.addChannelPartner] Backend POST failed, saving locally:', err);
+      }
     }
 
     const newPartner: ChannelPartner = {
       ...partner,
       id: partnerId,
+      name: partner.name || `${partnerId} (${partner.territory_name || 'Territory'})`,
+      role: partner.role || 'Channel Partner',
+      state: partner.state || 'Maharashtra',
+      whatsapp_number: partner.whatsapp_number || '+91 98000 00000',
       territory_id: partner.territory_id?.trim().toUpperCase() || partnerId,
       territory_name: partner.territory_name?.trim() || partner.name,
       cities: partner.cities && partner.cities.length > 0 ? partner.cities.map((c) => c.trim()).filter(Boolean) : [],
       priority_tier: partner.priority_tier?.trim() || 'Tier 2 - Growth',
       demand_drivers: partner.demand_drivers?.trim() || '',
     };
-    channelPartnersStore.push(newPartner);
+    channelPartnersStore = [newPartner, ...channelPartnersStore.filter((p) => p.id !== newPartner.id)];
     saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, channelPartnersStore);
     return Promise.resolve(newPartner);
   },
 
+  // DELETE /api/v1/partners/{uuid} (soft-delete: is_active = false)
   async deleteChannelPartner(id: string): Promise<boolean> {
+    const partnerIdUpper = id.toUpperCase();
+    if (!deletedPartnerIdsStore.includes(partnerIdUpper)) {
+      deletedPartnerIdsStore.push(partnerIdUpper);
+      saveToStorage(DELETED_PARTNERS_KEY, deletedPartnerIdsStore);
+    }
+
+    if (!USE_MOCK_API) {
+      const backendId = channelPartnersStore.find((cp) => cp.id === id)?.backend_id;
+      if (backendId) {
+        try {
+          await http.delete(API_ENDPOINTS.PARTNER_BY_ID(backendId));
+        } catch (err) {
+          console.warn('[crmApi.deleteChannelPartner] Backend DELETE failed:', err);
+        }
+      }
+    }
     channelPartnersStore = channelPartnersStore.filter((cp) => cp.id !== id);
     saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, channelPartnersStore);
     return Promise.resolve(true);
@@ -784,17 +1062,23 @@ export const crmApi = {
     if (leadIndex === -1) throw new Error('Lead not found');
 
     const lead = channelPartnerLeadsStore[leadIndex];
-    lead.status = 'Approved';
 
-    const newPartner: ChannelPartner = {
-      id: `cp-${Date.now()}`,
+    const partnerDetails = {
       name: lead.firm_name,
       role: `Channel Partner (${lead.city})`,
+      contact_person: lead.contact_person,
       email: lead.email,
       state: lead.state,
       whatsapp_number: lead.whatsapp_number,
+      territory_name: `${lead.city} Territory`,
+      cities: [lead.city],
     };
-    channelPartnersStore.push(newPartner);
+    // Live mode registers the approved applicant as a real partner via POST /partners
+    const newPartner: ChannelPartner = USE_MOCK_API
+      ? { id: `cp-${Date.now()}`, ...partnerDetails }
+      : await this.addChannelPartner(partnerDetails);
+    if (USE_MOCK_API) channelPartnersStore.push(newPartner);
+    lead.status = 'Approved';
 
     saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNER_LEADS, channelPartnerLeadsStore);
     saveToStorage(DB_STORAGE_KEYS.CHANNEL_PARTNERS, channelPartnersStore);

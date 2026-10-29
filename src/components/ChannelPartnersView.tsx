@@ -34,8 +34,8 @@ interface ChannelPartnersViewProps {
   channelPartners: ChannelPartner[];
   leads?: Lead[];
   onOpenAddPartner: () => void;
-  onRemovePartner: (partnerId: string) => void;
-  onApprovePartnerLead?: (leadId: string) => void;
+  onRemovePartner: (partnerId: string) => Promise<void> | void;
+  onApprovePartnerLead?: (leadId: string) => Promise<void> | void;
   onNavigateToDesk?: () => void;
   availableStates?: string[];
 }
@@ -148,7 +148,7 @@ export const ChannelPartnersView: React.FC<ChannelPartnersViewProps> = ({
   const handleApproveLead = async (lead: ChannelPartnerLead) => {
     try {
       if (onApprovePartnerLead) {
-        onApprovePartnerLead(lead.id);
+        await onApprovePartnerLead(lead.id);
       } else {
         await crmApi.approveChannelPartnerLead(lead.id);
       }
@@ -160,6 +160,11 @@ export const ChannelPartnersView: React.FC<ChannelPartnersViewProps> = ({
       });
     } catch (err) {
       console.error('Failed to approve partner lead:', err);
+      toast({
+        title: 'Approval Failed',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+      });
     }
   };
 
@@ -177,8 +182,17 @@ export const ChannelPartnersView: React.FC<ChannelPartnersViewProps> = ({
     }
   };
 
-  const handleSinglePartnerRemove = (partner: ChannelPartner) => {
-    onRemovePartner(partner.id);
+  const handleSinglePartnerRemove = async (partner: ChannelPartner) => {
+    try {
+      await onRemovePartner(partner.id);
+    } catch (err) {
+      toast({
+        title: 'Could Not Remove Partner',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+      });
+      return;
+    }
     toast({
       title: 'Partner Removed',
       message: `${partner.name} removed from active network.`,
@@ -253,6 +267,11 @@ export const ChannelPartnersView: React.FC<ChannelPartnersViewProps> = ({
           </div>
           <span className="text-xs text-text-tertiary font-medium">
             3 columns layout • Scroll to explore {filteredPartners.length} partners
+            {filteredPartners.length < channelPartners.length && (
+              <span className="text-brand-navy dark:text-blue-400 font-semibold ml-1">
+                (of {channelPartners.length} total)
+              </span>
+            )}
           </span>
         </div>
 
@@ -302,6 +321,25 @@ export const ChannelPartnersView: React.FC<ChannelPartnersViewProps> = ({
             </select>
           </div>
         </div>
+
+        {/* ACTIVE FILTER NOTICE */}
+        {assignedOnlyFilter && (
+          <div className="flex items-center justify-between px-4 py-2.5 bg-brand-navy/10 border border-brand-navy/20 rounded-xl text-xs text-brand-navy dark:text-blue-300">
+            <span className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-brand-navy dark:text-blue-400 flex-shrink-0" />
+              <span>
+                Filtering by <strong>Assigned Only</strong>: Displaying {filteredPartners.length} channel partners with assigned leads ({channelPartners.length - filteredPartners.length} unassigned hidden).
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setAssignedOnlyFilter(false)}
+              className="text-xs font-bold underline hover:opacity-80 cursor-pointer ml-3 whitespace-nowrap"
+            >
+              Show all {channelPartners.length} partners
+            </button>
+          </div>
+        )}
 
         {/* ACTIVE PARTNERS GRID (3 COLUMNS & SCROLL CONTAINER) */}
         <div className="overflow-y-auto max-h-[720px] pr-2 table-scrollbar scroll-smooth rounded-2xl">
@@ -442,9 +480,23 @@ export const ChannelPartnersView: React.FC<ChannelPartnersViewProps> = ({
           })}
 
           {filteredPartners.length === 0 && (
-            <div className="col-span-full py-10 text-center bg-surface border border-border-base rounded-card text-text-tertiary text-xs space-y-2 shadow-elevation-1">
+            <div className="col-span-full py-10 text-center bg-surface border border-border-base rounded-card text-text-tertiary text-xs space-y-3 shadow-elevation-1">
               <Building className="w-8 h-8 text-text-tertiary mx-auto opacity-50" />
-              <p>No channel partners found matching "{searchTerm}".</p>
+              <p>No channel partners found matching current filters.</p>
+              {(searchTerm || selectedState !== 'all' || assignedOnlyFilter) && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedState('all');
+                    setAssignedOnlyFilter(false);
+                  }}
+                  className="rounded-full mx-auto"
+                >
+                  Reset All Filters
+                </Button>
+              )}
             </div>
           )}
         </motion.div>

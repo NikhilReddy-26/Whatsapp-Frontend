@@ -5,18 +5,28 @@ export type PipelineStage = 'Lead' | 'Qualified' | 'Visit' | 'Quote' | 'Follow-u
 export interface ExtractedField {
   key: string;
   value: string;
-  confidence: number;
+  confidence?: number;
   source_message?: string;
   timestamp?: string;
   is_verified?: boolean;
 }
 
 export interface ScoreBreakdown {
-  fit: number;          // Max 30
-  opportunity: number;  // Max 25
-  intent: number;       // Max 20
-  urgency: number;      // Max 15
-  completeness: number; // Max 10
+  fit: number;          // Actual fit score
+  fit_max?: number;     // e.g. 30
+  opportunity: number;  // Actual opportunity score
+  opportunity_max?: number; // e.g. 25
+  intent: number;       // Actual intent score
+  intent_max?: number;  // e.g. 20
+  urgency: number;      // Actual urgency score
+  urgency_max?: number; // e.g. 15
+  completeness: number; // Actual completeness score
+  completeness_max?: number; // e.g. 10
+  overall_score?: number;
+  confidence?: number;
+  band?: string;
+  reasons?: string[];
+  summary_quote?: string;
 }
 
 export interface LocationInfo {
@@ -99,6 +109,31 @@ export interface Lead {
   flooring_category?: FlooringAreaCategory;
   flooring_area?: FlooringAreaInfo;
   product?: ProductType;
+  // Backend API attributes
+  ref_no?: string;
+  campaign_id?: string;
+  matched_partner?: MatchedPartner;
+  assigned_partner?: string;
+  product_specification?: string;
+  recommended_product?: string;
+  facility_sector?: string;
+  facility_specifics?: string;
+  quote_text?: string;
+  timeline_days?: number;
+  needs_human?: boolean;
+  bot_status?: string;
+  score_reasons?: string[];
+  facts?: Record<string, unknown>;
+}
+
+// Territory partner the backend matched to a lead (by location)
+export interface MatchedPartner {
+  code: string;
+  firm_name: string;
+  territory: string;
+  tier: string;
+  full_address: string;
+  google_maps_url?: string;
 }
 
 export type MessageSender = 'customer' | 'ai' | 'human' | 'system';
@@ -140,6 +175,7 @@ export interface Appointment {
   location: string;
   engineer: string;
   status: 'scheduled' | 'completed' | 'cancelled';
+  inspection_objectives?: string;
   notes?: string;
 }
 
@@ -247,10 +283,21 @@ export interface Territory {
   demandDrivers: string;
 }
 
-export interface ChannelPartner {
+export interface Campaign {
   id: string;
   name: string;
+  code: string;
+  product: string;
+  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+  leads_count: number;
+}
+
+export interface ChannelPartner {
+  id: string; // partner code, e.g. CP-026
+  backend_id?: string; // backend UUID, used for PATCH/DELETE
+  name: string;
   role: string;
+  contact_person?: string;
   email?: string;
   state: string;
   whatsapp_number: string;

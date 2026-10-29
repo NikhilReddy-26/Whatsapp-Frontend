@@ -97,6 +97,12 @@ export const LoginPage: React.FC = () => {
         message: res.message,
         type: 'success',
       });
+    } else {
+      toast({
+        title: 'Reset Unavailable',
+        message: res.message,
+        type: 'warning',
+      });
     }
   };
 

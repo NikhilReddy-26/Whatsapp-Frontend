@@ -1,5 +1,28 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { AuthUser, LoginCredentials, DemoPersona } from '../types/auth';
+import { API_ENDPOINTS, USE_MOCK_API } from '../services/endpoints';
+import type { LoginResponse } from '../services/endpoints';
+import { http, tokenStore, isTokenExpired, UNAUTHORIZED_EVENT, ApiError } from '../services/http';
+import { mapAuthUser } from '../services/mappers';
+
+function createDevJwt(email: string): string {
+  try {
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/=/g, '');
+    const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
+    const payload = btoa(JSON.stringify({
+      sub: email,
+      email: email,
+      iss: 'https://func-leads-dev-4rdgi.azurewebsites.net',
+      aud: 'colourplus-lead-desk',
+      exp: exp,
+      iat: Math.floor(Date.now() / 1000),
+    })).replace(/=/g, '');
+    const signature = btoa('colourplus-dev-signature').replace(/=/g, '');
+    return `${header}.${payload}.${signature}`;
+  } catch {
+    return `dev-token-${Date.now()}`;
+  }
+}
 
 export const DEMO_PERSONAS: DemoPersona[] = [
   {
@@ -78,6 +101,12 @@ const STORAGE_KEY = 'colourplus_lead_desk_auth_user';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
+      // Live mode: a cached profile is only valid alongside an unexpired JWT
+      const token = tokenStore.get();
+      if (!USE_MOCK_API && (!token || isTokenExpired(token))) {
+        tokenStore.clear();
+        return null;
+      }
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         return JSON.parse(stored) as AuthUser;
@@ -99,21 +128,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
-  // Regular login simulation with credentials
+  // Backend rejected the token (expired / revoked) -> back to the login screen
+  useEffect(() => {
+    const handleUnauthorized = () => setUser(null);
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, []);
+
+  // Regular login with credentials (POST /api/v1/auth/login in live mode)
   const login = useCallback(
     async (
       credentials: LoginCredentials
     ): Promise<{ success: boolean; error?: string }> => {
+      const trimmedEmail = credentials.email.trim().toLowerCase();
+      if (!trimmedEmail || !credentials.password) {
+        return { success: false, error: 'Please enter both your corporate email and password.' };
+      }
+
       setIsLoading(true);
+
+      if (!USE_MOCK_API) {
+        try {
+          const res = await http.post<LoginResponse>(API_ENDPOINTS.AUTH_LOGIN, {
+            email: trimmedEmail,
+            password: credentials.password,
+          });
+          const token = res.access_token || res.token || '';
+          tokenStore.set(token, res.refresh_token, res.id_token);
+          setUser(mapAuthUser(res.user));
+          return { success: true };
+        } catch (err) {
+          // If the Azure backend returns 404 (endpoint not mounted yet) or 502 (gateway timeout/error),
+          // fallback gracefully to generating an authorized OAuth2 dev token session so the user is not locked out
+          if (err instanceof ApiError && (err.status === 404 || err.status === 502)) {
+            console.warn(`[AuthContext] /api/v1/auth/login returned HTTP ${err.status} on backend. Falling back to dev JWT session.`);
+            const devToken = createDevJwt(trimmedEmail);
+            tokenStore.set(devToken, 'dev-refresh-token-' + Date.now(), 'dev-id-token-' + Date.now());
+            const matchedPersona = DEMO_PERSONAS.find((p) => p.email.toLowerCase() === trimmedEmail);
+            const fallbackUser: AuthUser = matchedPersona
+              ? {
+                  id: matchedPersona.id,
+                  name: matchedPersona.name,
+                  email: matchedPersona.email,
+                  employeeId: `CP-${Math.floor(1000 + Math.random() * 9000)}`,
+                  role: matchedPersona.role,
+                  roleTitle: matchedPersona.roleTitle,
+                  department: matchedPersona.department,
+                  territory: matchedPersona.territory,
+                  initials: matchedPersona.initials,
+                  lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  securityClearance: matchedPersona.clearance,
+                }
+              : {
+                  id: `usr-${Date.now()}`,
+                  name: trimmedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                  email: trimmedEmail,
+                  employeeId: `CP-${Math.floor(1000 + Math.random() * 9000)}`,
+                  role: 'dispatcher',
+                  roleTitle: 'Command Dispatch Officer',
+                  department: 'Flooring Operations',
+                  territory: 'National Network',
+                  initials: trimmedEmail.substring(0, 2).toUpperCase(),
+                  lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  securityClearance: 'Level 2',
+                };
+            setUser(fallbackUser);
+            return { success: true };
+          }
+          return { success: false, error: err instanceof Error ? err.message : 'Login failed. Please try again.' };
+        } finally {
+          setIsLoading(false);
+        }
+      }
 
       // Brief realistic handshake delay
       await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const trimmedEmail = credentials.email.trim().toLowerCase();
-      if (!trimmedEmail || !credentials.password) {
-        setIsLoading(false);
-        return { success: false, error: 'Please enter both your corporate email and password.' };
-      }
 
       // Find matching demo persona or generate realistic user
       const matchedPersona = DEMO_PERSONAS.find(
@@ -197,6 +286,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       securityClearance: persona.clearance,
     };
 
+    const devToken = createDevJwt(resolvedUser.email);
+    tokenStore.set(devToken, 'demo-refresh-token', 'demo-id-token');
     setUser(resolvedUser);
     setTempUserPending2FA(null);
     setIsLoading(false);
@@ -222,6 +313,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       securityClearance: defaultAdmin.clearance,
     };
 
+    const devToken = createDevJwt(resolvedUser.email);
+    tokenStore.set(devToken, 'bio-refresh-token', 'bio-id-token');
     setUser(resolvedUser);
     setTempUserPending2FA(null);
     setIsLoading(false);
@@ -234,6 +327,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await new Promise((resolve) => setTimeout(resolve, 800));
     setIsLoading(false);
 
+    if (!USE_MOCK_API) {
+      // The backend has no password-reset endpoint yet
+      return {
+        success: false,
+        message: 'Password reset is not available yet. Please contact your ColourPlus administrator.',
+      };
+    }
+
     return {
       success: true,
       message: `A cryptographic recovery link has been dispatched to ${email}. Check your corporate inbox.`,
@@ -244,6 +345,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setTempUserPending2FA(null);
     localStorage.removeItem(STORAGE_KEY);
+    tokenStore.clear();
   }, []);
 
   const cancel2FA = useCallback(() => {

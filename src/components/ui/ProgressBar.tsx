@@ -23,7 +23,8 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   className = '',
 }) => {
   const shouldReduceMotion = useReducedMotion();
-  const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
+  const safeMax = max > 0 ? max : 1;
+  const percentage = Math.min(Math.max((value / safeMax) * 100, 0), 100);
 
   return (
     <div className={`space-y-1.5 ${className}`}>

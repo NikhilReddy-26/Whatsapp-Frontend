@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Calendar, MapPin, User, Clock, CheckCircle2, Plus } from 'lucide-react';
+import { Calendar, MapPin, User, Clock, CheckCircle2, Plus, XCircle, ClipboardList } from 'lucide-react';
 import { Appointment } from '../types/crm';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -11,12 +11,27 @@ import { perspectiveCardIn, staggerContainer } from '../lib/motion';
 interface AppointmentsViewProps {
   appointments: Appointment[];
   onOpenConfirmVisit: () => void;
+  onCompleteVisit?: (id: string) => Promise<void>;
+  onCancelVisit?: (id: string) => Promise<void>;
 }
 
 export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   appointments,
   onOpenConfirmVisit,
+  onCompleteVisit,
+  onCancelVisit,
 }) => {
+  const [busyId, setBusyId] = React.useState<string | null>(null);
+
+  const runAction = async (id: string, action?: (id: string) => Promise<void>) => {
+    if (!action) return;
+    setBusyId(id);
+    try {
+      await action(id);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -93,6 +108,13 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
                   <span>Engineer: <strong className="text-text-primary">{app.engineer}</strong></span>
                 </div>
 
+                {app.inspection_objectives && (
+                  <div className="flex items-start space-x-2 text-text-secondary">
+                    <ClipboardList className="w-4 h-4 text-brand-green flex-shrink-0 mt-0.5" />
+                    <span className="leading-snug">{app.inspection_objectives}</span>
+                  </div>
+                )}
+
                 {app.notes && (
                   <div className="bg-surface-subtle p-3 rounded-xl border border-border-subtle text-text-secondary text-[11px] leading-relaxed shadow-2xs italic">
                     "{app.notes}"
@@ -104,6 +126,33 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
                 <span className="font-mono">Date: {app.date}</span>
                 <span className="text-brand-navy dark:text-blue-400 font-bold">Confirmed Audit</span>
               </div>
+
+              {app.status === 'scheduled' && (onCompleteVisit || onCancelVisit) && (
+                <div className="flex items-center justify-end gap-2">
+                  {onCancelVisit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busyId === app.id}
+                      onClick={() => runAction(app.id, onCancelVisit)}
+                      leftIcon={<XCircle className="w-4 h-4" />}
+                    >
+                      Cancel Visit
+                    </Button>
+                  )}
+                  {onCompleteVisit && (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      disabled={busyId === app.id}
+                      onClick={() => runAction(app.id, onCompleteVisit)}
+                      leftIcon={<CheckCircle2 className="w-4 h-4" />}
+                    >
+                      Mark Completed
+                    </Button>
+                  )}
+                </div>
+              )}
             </Card>
           </motion.div>
         ))}

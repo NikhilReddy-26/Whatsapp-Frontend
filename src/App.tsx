@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { crmApi } from './services/api';
-import type { Lead, Message, KpiData, Appointment, CRMSettings, ActivePageView, PipelineStage, ChannelPartner } from './types/crm';
+import type { Lead, Message, KpiData, Appointment, CRMSettings, ActivePageView, PipelineStage, ChannelPartner, Campaign } from './types/crm';
 import type { AssignLeadOptions } from './services/api';
 import { ThemeProvider } from './context/ThemeContext';
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginPage } from './components/LoginPage';
 import { pageVariants } from './lib/motion';
@@ -26,6 +26,7 @@ import { Skeleton } from './components/ui/Skeleton';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [activePage, setActivePage] = useState<ActivePageView>('desk');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -34,8 +35,15 @@ function AppContent() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [settings, setSettings] = useState<CRMSettings | null>(null);
   const [channelPartners, setChannelPartners] = useState<ChannelPartner[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const showError = (title: string, err: unknown) => {
+    console.error(title, err);
+    toast({ title, message: err instanceof Error ? err.message : 'Please try again.', type: 'error' });
+  };
 
   // Modal States
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -46,22 +54,30 @@ function AppContent() {
 
   // Define data fetcher before useEffect to guarantee clean lifecycle
   const loadData = async () => {
+    setIsLoadingInitial(true);
+    setLoadError(null);
     try {
-      const [fetchedLeads, fetchedKpis, fetchedApps, fetchedSettings, fetchedPartners] = await Promise.all([
-        crmApi.getLeads(),
-        crmApi.getKpis(),
+      // Leads first so site visits can be matched to lead names; KPIs are computed from both
+      const fetchedLeads = await crmApi.getLeads({ refresh: true });
+      const [fetchedApps, fetchedSettings, fetchedPartners, fetchedCampaigns] = await Promise.all([
         crmApi.getAppointments(),
         crmApi.getSettings(),
         crmApi.getChannelPartners(),
+        crmApi.getCampaigns().catch((err) => {
+          console.warn('Campaigns unavailable, falling back to lead campaign names:', err);
+          return [] as Campaign[];
+        }),
       ]);
 
       setLeads(fetchedLeads);
-      setKpis(fetchedKpis);
       setAppointments(fetchedApps);
       setSettings(fetchedSettings);
       setChannelPartners(fetchedPartners);
+      setCampaigns(fetchedCampaigns);
+      setKpis(await crmApi.getKpis());
     } catch (err) {
       console.error('Failed to load initial CRM data:', err);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load data from the server.');
     } finally {
       setIsLoadingInitial(false);
     }
@@ -74,6 +90,7 @@ function AppContent() {
   }, [isAuthenticated]);
 
   // Add Channel Partner Handler
+  // Errors propagate so the calling modal can show them and stay open
   const handleAddChannelPartner = async (partnerData: Omit<ChannelPartner, 'id'> & { id?: string }) => {
     await crmApi.addChannelPartner(partnerData);
     const updatedPartners = await crmApi.getChannelPartners();
@@ -94,14 +111,30 @@ function AppContent() {
     setChannelPartners(updatedPartners);
   };
 
+  const selectionSeqRef = useRef(0);
+
   // Lead Selection Handler
   const handleSelectLead = async (leadId: string) => {
+    const seq = ++selectionSeqRef.current;
     setSelectedLeadId(leadId);
     setHeaderAssignTrigger(0);
     setIsAssignModalOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    try {
+      // Enriched drawer record (full extracted fields) from GET /leads/{id}
+      const detailed = await crmApi.getLeadById(leadId);
+      if (seq === selectionSeqRef.current && detailed) {
+        setLeads((prev) => prev.map((l) => (l.id === detailed.id ? detailed : l)));
+      }
+    } catch (err) {
+      if (seq === selectionSeqRef.current) {
+        showError('Could not load full lead details', err);
+      }
+    }
     const msgs = await crmApi.getMessages(leadId);
-    setMessages(msgs);
+    if (seq === selectionSeqRef.current) {
+      setMessages(msgs);
+    }
   };
 
   // Back to Full Inbox
@@ -182,6 +215,30 @@ function AppContent() {
     setAppointments(fetchedApps);
     const fetchedLeads = await crmApi.getLeads();
     setLeads(fetchedLeads);
+    setKpis(await crmApi.getKpis());
+  };
+
+  // Site visit status changes (PATCH / DELETE /site-visits/{id})
+  const handleCompleteVisit = async (id: string) => {
+    try {
+      await crmApi.updateAppointment(id, { status: 'COMPLETED' });
+      setAppointments(await crmApi.getAppointments());
+      setKpis(await crmApi.getKpis());
+      toast({ title: 'Site Visit Completed', message: 'The inspection has been marked as completed.', type: 'success' });
+    } catch (err) {
+      showError('Could not update site visit', err);
+    }
+  };
+
+  const handleCancelVisit = async (id: string) => {
+    try {
+      await crmApi.deleteAppointment(id);
+      setAppointments(await crmApi.getAppointments());
+      setKpis(await crmApi.getKpis());
+      toast({ title: 'Site Visit Cancelled', message: 'The inspection has been removed from the schedule.', type: 'warning' });
+    } catch (err) {
+      showError('Could not cancel site visit', err);
+    }
   };
 
   // Add Internal Note Handler
@@ -252,6 +309,18 @@ function AppContent() {
             </div>
             <Skeleton className="h-96 w-full rounded-2xl" />
           </div>
+        ) : loadError ? (
+          <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
+            <h2 className="text-xl font-black text-text-primary">Could not load Lead Desk data</h2>
+            <p className="text-sm text-text-secondary">{loadError}</p>
+            <button
+              type="button"
+              onClick={loadData}
+              className="px-5 py-2 rounded-full bg-brand-navy text-white text-sm font-bold hover:opacity-90"
+            >
+              Retry
+            </button>
+          </div>
         ) : (
           <AnimatePresence mode="wait">
             {activePage === 'desk' && (
@@ -293,6 +362,7 @@ function AppContent() {
                     availableProducts={settings?.products}
                     availableStates={settings?.states}
                     availableFlooringAreas={settings?.facility_sectors}
+                    availableCampaigns={campaigns.map((c) => c.name)}
                   />
                 ) : (
                   /* LEVEL 2: DETAILED LEAD VIEW (EXTRACTED DATA ON LEFT 50%, WHATSAPP ON RIGHT 50%) */
@@ -348,6 +418,8 @@ function AppContent() {
                 <AppointmentsView
                   appointments={appointments}
                   onOpenConfirmVisit={() => setIsConfirmVisitModalOpen(true)}
+                  onCompleteVisit={handleCompleteVisit}
+                  onCancelVisit={handleCancelVisit}
                 />
               </motion.div>
             )}

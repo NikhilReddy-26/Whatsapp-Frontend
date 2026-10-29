@@ -9,7 +9,7 @@ interface RemoveChannelPartnerModalProps {
   isOpen: boolean;
   onClose: () => void;
   partners: ChannelPartner[];
-  onRemovePartner: (partnerId: string) => void;
+  onRemovePartner: (partnerId: string) => Promise<void> | void;
 }
 
 export const RemoveChannelPartnerModal: React.FC<RemoveChannelPartnerModalProps> = ({
@@ -23,10 +23,19 @@ export const RemoveChannelPartnerModal: React.FC<RemoveChannelPartnerModalProps>
 
   const selectedPartner = partners.find((p) => p.id === selectedPartnerId);
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
     if (!selectedPartnerId || !selectedPartner) return;
 
-    onRemovePartner(selectedPartnerId);
+    try {
+      await onRemovePartner(selectedPartnerId);
+    } catch (err) {
+      toast({
+        title: 'Could Not Remove Partner',
+        message: err instanceof Error ? err.message : 'Please try again.',
+        type: 'error',
+      });
+      return;
+    }
 
     toast({
       title: 'Partner Removed',

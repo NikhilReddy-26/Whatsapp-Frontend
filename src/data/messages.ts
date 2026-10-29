@@ -1,6 +1,236 @@
 import { Message } from '../types/crm';
 
 export const initialMessages: Record<string, Message[]> = {
+  // --- REAL BACKEND SAMPLE LEADS ---
+  '6f28f3a9-2ecd-43b0-814b-389cc4e679a8': [
+    {
+      id: 'm-esd-1',
+      lead_id: '6f28f3a9-2ecd-43b0-814b-389cc4e679a8',
+      sender: 'customer',
+      text: 'Need ESD antistatic floor coating for mobile robotics line in Bengaluru. Surface resistivity must be ANSI/ESD S20.20 certified (10^6 to 10^9 ohms). Area is 8,200 sq ft.',
+      type: 'text',
+      timestamp: '09:20 AM',
+    },
+    {
+      id: 'm-esd-2',
+      lead_id: '6f28f3a9-2ecd-43b0-814b-389cc4e679a8',
+      sender: 'ai',
+      text: 'Hello Arun! ColourPlus provides ANSI/ESD S20.20 certified ESD Epoxy Flooring with conductive copper grid grounding. Could you share your site location and target handover date?',
+      type: 'text',
+      timestamp: '09:22 AM',
+    },
+    {
+      id: 'm-esd-3',
+      lead_id: '6f28f3a9-2ecd-43b0-814b-389cc4e679a8',
+      sender: 'customer',
+      text: '📍 Dropped Pin: ITPL Main Road, Bengaluru, Karnataka (12.9850° N, 77.7300° E). Need completion within 7 days for mobile robotics assembly line.',
+      type: 'location',
+      location_data: {
+        name: 'NexGen Robotics & PCB Site',
+        address: 'ITPL Main Road, Bengaluru, Karnataka',
+        maps_url: 'https://maps.google.com/?q=12.9850,77.7300',
+        lat: 12.985,
+        lng: 77.73,
+      },
+      timestamp: '09:24 AM',
+    },
+    {
+      id: 'm-esd-4',
+      lead_id: '6f28f3a9-2ecd-43b0-814b-389cc4e679a8',
+      sender: 'system',
+      text: 'SILENTLY EXTRACTED INTELLIGENCE',
+      type: 'system_note',
+      timestamp: '09:25 AM',
+      extracted_chips: [
+        { label: 'Product Required', value: 'ESD Coating Flooring' },
+        { label: 'Flooring Area Type', value: 'Factory & Industrial' },
+        { label: 'Project Area', value: '8,200 sq ft' },
+        { label: 'Target Timeline', value: 'Within 7 Days' },
+        { label: 'Territory Partner', value: 'CP-029 (Bengaluru Metro)' },
+      ],
+    },
+    {
+      id: 'm-esd-5',
+      lead_id: '6f28f3a9-2ecd-43b0-814b-389cc4e679a8',
+      sender: 'ai',
+      text: 'Thank you Arun. Your site on ITPL Main Road is mapped to CP-029 (Bengaluru Metro). Our technical engineer will perform a substrate surface resistivity and moisture evaluation.',
+      type: 'text',
+      timestamp: '09:26 AM',
+    },
+    {
+      id: 'm-esd-6',
+      lead_id: '6f28f3a9-2ecd-43b0-814b-389cc4e679a8',
+      sender: 'customer',
+      text: 'Confirmed. Site visit scheduled for tomorrow morning.',
+      type: 'text',
+      timestamp: '10:06 AM',
+    },
+  ],
+
+  '2c29e84d-41a6-4777-b042-2e3d44d8ab3f': [
+    {
+      id: 'm-epu-1',
+      lead_id: '2c29e84d-41a6-4777-b042-2e3d44d8ab3f',
+      sender: 'customer',
+      text: 'Automobile workshop bay and service station 12000 sqft in Peenya 3rd Phase. High wheel-load resistance and oil spillage tolerance needed for heavy commercial vehicles.',
+      type: 'text',
+      timestamp: '09:18 AM',
+    },
+    {
+      id: 'm-epu-2',
+      lead_id: '2c29e84d-41a6-4777-b042-2e3d44d8ab3f',
+      sender: 'ai',
+      text: 'Hello! For automobile workshops with heavy wheel load and grease spillage, ColourPlus Epoxy Polyurethane (EPU) Coating provides exceptional toughness and chemical resistance. Target timeline?',
+      type: 'text',
+      timestamp: '09:20 AM',
+    },
+    {
+      id: 'm-epu-3',
+      lead_id: '2c29e84d-41a6-4777-b042-2e3d44d8ab3f',
+      sender: 'customer',
+      text: 'Within 15 Days. Address: Peenya 3rd Phase, Bengaluru, Karnataka.',
+      type: 'text',
+      timestamp: '09:23 AM',
+    },
+    {
+      id: 'm-epu-4',
+      lead_id: '2c29e84d-41a6-4777-b042-2e3d44d8ab3f',
+      sender: 'system',
+      text: 'SILENTLY EXTRACTED INTELLIGENCE',
+      type: 'system_note',
+      timestamp: '09:24 AM',
+      extracted_chips: [
+        { label: 'Product Required', value: 'Epoxy Polyurethane (EPU)' },
+        { label: 'Flooring Area Type', value: 'Automobile & Garages' },
+        { label: 'Project Area', value: '12,000 sq ft' },
+        { label: 'Target Timeline', value: 'Within 15 Days' },
+      ],
+    },
+  ],
+
+  'c93e94ea-9dbf-456a-9cf6-7f43d8b27cf8': [
+    {
+      id: 'm-poly-1',
+      lead_id: 'c93e94ea-9dbf-456a-9cf6-7f43d8b27cf8',
+      sender: 'customer',
+      text: 'Cold storage processing hall 5500 sqft in Baikampady Industrial Area, Mangaluru. Sub-zero thermal shock flooring required for seafood blast freezing.',
+      type: 'text',
+      timestamp: '09:15 AM',
+    },
+    {
+      id: 'm-poly-2',
+      lead_id: 'c93e94ea-9dbf-456a-9cf6-7f43d8b27cf8',
+      sender: 'ai',
+      text: 'Hello Rajesh! For seafood blast freezers and sub-zero thermal cycling, ColourPlus Polycrete Flooring withstands -40°C to +120°C and frequent steam washdowns. Timeline required?',
+      type: 'text',
+      timestamp: '09:18 AM',
+    },
+    {
+      id: 'm-poly-3',
+      lead_id: 'c93e94ea-9dbf-456a-9cf6-7f43d8b27cf8',
+      sender: 'customer',
+      text: 'Within 30 Days before fishing season begins.',
+      type: 'text',
+      timestamp: '09:22 AM',
+    },
+  ],
+
+  'cc7ff284-f386-443f-95b7-b82f2179a55b': [
+    {
+      id: 'm-water-1',
+      lead_id: 'cc7ff284-f386-443f-95b7-b82f2179a55b',
+      sender: 'customer',
+      text: 'Terrace size around 8000 sq ft on Whitefield Main Road. Commercial rooftop terrace slab waterproofing required before monsoon.',
+      type: 'text',
+      timestamp: '09:10 AM',
+    },
+    {
+      id: 'm-water-2',
+      lead_id: 'cc7ff284-f386-443f-95b7-b82f2179a55b',
+      sender: 'ai',
+      text: 'Hello Anand! ColourPlus OEM Waterproofing systems provide seamless UV-resistant elastomeric membrane coating with ponding water tolerance and 10-year warranty.',
+      type: 'text',
+      timestamp: '09:12 AM',
+    },
+    {
+      id: 'm-water-3',
+      lead_id: 'cc7ff284-f386-443f-95b7-b82f2179a55b',
+      sender: 'customer',
+      text: 'Need installation completed within 20 Days.',
+      type: 'text',
+      timestamp: '09:15 AM',
+    },
+  ],
+
+  'd4c84156-9943-42af-96fd-ba317b610f4c': [
+    {
+      id: 'm-pharma-1',
+      lead_id: 'd4c84156-9943-42af-96fd-ba317b610f4c',
+      sender: 'customer',
+      text: 'Cleanroom area 6500 sqft in Electronic City Phase 1. Cleanroom class 10000 compliance required. Pharma audit scheduled next month.',
+      type: 'text',
+      timestamp: '09:05 AM',
+    },
+    {
+      id: 'm-pharma-2',
+      lead_id: 'd4c84156-9943-42af-96fd-ba317b610f4c',
+      sender: 'ai',
+      text: 'Hello Dr. Priya Sharma! ColourPlus Epoxy Self-Leveling – Matt provides coved, seamless, anti-microbial finish meeting US-FDA and Class 10,000 cleanroom standards.',
+      type: 'text',
+      timestamp: '09:08 AM',
+    },
+    {
+      id: 'm-pharma-3',
+      lead_id: 'd4c84156-9943-42af-96fd-ba317b610f4c',
+      sender: 'customer',
+      text: 'Target timeline is within 14 Days. Please send certified TDS package and quotation.',
+      type: 'text',
+      timestamp: '09:12 AM',
+    },
+  ],
+
+  '5ad34f05-868e-4357-a18e-9ded252afd5f': [
+    {
+      id: 'm-cnc-1',
+      lead_id: '5ad34f05-868e-4357-a18e-9ded252afd5f',
+      sender: 'customer',
+      text: 'Factory floor for CNC machinery. 15,000 sq ft in Plot 42, Phase II, Hosur Industrial Complex. High immediate intent, budget pre-approved.',
+      type: 'text',
+      timestamp: '09:00 AM',
+    },
+    {
+      id: 'm-cnc-2',
+      lead_id: '5ad34f05-868e-4357-a18e-9ded252afd5f',
+      sender: 'ai',
+      text: 'Hello Ramesh! ColourPlus High-Build Epoxy Mortar is specifically formulated for heavy CNC machine manufacturing plants with high impact and point-load resistance.',
+      type: 'text',
+      timestamp: '09:04 AM',
+    },
+    {
+      id: 'm-cnc-3',
+      lead_id: '5ad34f05-868e-4357-a18e-9ded252afd5f',
+      sender: 'customer',
+      text: 'Floor is new concrete slab (M30 grade). Target timeline within 10 days.',
+      type: 'text',
+      timestamp: '09:08 AM',
+    },
+    {
+      id: 'm-cnc-4',
+      lead_id: '5ad34f05-868e-4357-a18e-9ded252afd5f',
+      sender: 'system',
+      text: 'SILENTLY EXTRACTED INTELLIGENCE',
+      type: 'system_note',
+      timestamp: '09:10 AM',
+      extracted_chips: [
+        { label: 'Product Required', value: 'High-Build Epoxy Mortar' },
+        { label: 'Flooring Area Type', value: 'Factory & Industrial (CNC Plant)' },
+        { label: 'Project Area', value: '15,000 sq ft' },
+        { label: 'Floor Condition', value: 'New Concrete Slab (M30 grade)' },
+        { label: 'Target Timeline', value: 'Within 10 Days' },
+        { label: 'Matched Partner', value: 'CP-026 (Northern TN Industrial)' },
+      ],
+    },
+  ],
   'lead-001': [
     {
       id: 'm-101',
@@ -501,3 +731,10 @@ export const initialMessages: Record<string, Message[]> = {
   ]
 };
 
+// Alias ref_no keys so message lookup succeeds by either UUID or user-visible ref_no
+initialMessages['CP-000462'] = initialMessages['6f28f3a9-2ecd-43b0-814b-389cc4e679a8'];
+initialMessages['CP-000461'] = initialMessages['2c29e84d-41a6-4777-b042-2e3d44d8ab3f'];
+initialMessages['CP-000460'] = initialMessages['c93e94ea-9dbf-456a-9cf6-7f43d8b27cf8'];
+initialMessages['CP-000459'] = initialMessages['cc7ff284-f386-443f-95b7-b82f2179a55b'];
+initialMessages['CP-000458'] = initialMessages['d4c84156-9943-42af-96fd-ba317b610f4c'];
+initialMessages['CP-000457'] = initialMessages['5ad34f05-868e-4357-a18e-9ded252afd5f'];

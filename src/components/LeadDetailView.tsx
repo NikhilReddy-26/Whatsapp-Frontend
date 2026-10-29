@@ -83,6 +83,12 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
 
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2.5">
+              {lead.ref_no && (
+                <span className="font-mono text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded bg-brand-navy text-white shadow-2xs">
+                  {lead.ref_no}
+                </span>
+              )}
+
               <AnimatedText
                 text={lead.name}
                 as="h2"
@@ -94,10 +100,16 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
                 {lead.funnel} ({lead.score}/100)
               </Badge>
 
-              {lead.product && (
+              {lead.needs_human && (
+                <Badge variant="hot" size="sm">
+                  Needs Human
+                </Badge>
+              )}
+
+              {(lead.recommended_product || lead.product) && (
                 <span className="text-xs px-3 py-1 rounded-full font-bold border bg-brand-navy/10 text-brand-navy dark:text-blue-300 border-brand-navy/30 flex items-center gap-1.5 shadow-2xs">
                   <Package className="w-3.5 h-3.5" />
-                  <span>{lead.product}</span>
+                  <span>{lead.recommended_product || lead.product}</span>
                 </span>
               )}
             </div>
@@ -161,7 +173,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
               <span>Extracted Data & Intelligence</span>
             </h3>
             <span className="text-xs text-text-secondary">
-              Confidence: <strong className="text-brand-green font-mono font-bold">{(lead.confidence * 100).toFixed(0)}%</strong>
+              Confidence: <strong className="text-brand-green font-mono font-bold">{(lead.score_breakdown?.confidence ?? (lead.confidence > 1 ? Math.round(lead.confidence) : Math.round(lead.confidence * 100)))}%</strong>
             </span>
           </div>
 
@@ -190,7 +202,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
               <span>Live WhatsApp Customer Stream</span>
             </h3>
             <span className="text-xs text-text-tertiary font-mono">
-              Lead #{lead.id}
+              Lead #{lead.ref_no || lead.id}
             </span>
           </div>
 

@@ -1741,9 +1741,35 @@ export interface ChannelPartnerSuggestion {
  * Compares lead city/state with all 100 territories and identifies the matching Channel Partner (CP-001..CP-100)
  */
 export function findSuggestedChannelPartner(
-  lead: { location?: { city?: string; state?: string; address?: string } },
+  lead: {
+    location?: { city?: string; state?: string; address?: string };
+    matched_partner?: { code: string; firm_name: string; territory: string; tier: string };
+  },
   channelPartners: any[] = []
 ): ChannelPartnerSuggestion {
+  // 0. The backend already matched a territory partner: trust it over local city lookup
+  if (lead.matched_partner?.code) {
+    const mp = lead.matched_partner;
+    const code = mp.code.toUpperCase();
+    const backendCity = mp.territory.split(',')[0].trim();
+    const territory: Territory = TERRITORIES.find((t) => t.territoryId.toUpperCase() === code) || {
+      territoryId: code,
+      state: mp.territory.split(',').pop()!.trim(),
+      priorityTier: mp.tier,
+      territoryName: mp.firm_name,
+      cities: [backendCity],
+      cityCount: 1,
+      demandDrivers: '',
+    };
+    return {
+      partner: channelPartners.find((cp) => cp.id?.toUpperCase() === code || cp.territory_id?.toUpperCase() === code),
+      territory,
+      matchedCity: lead.location?.city || backendCity,
+      confidence: 0.98,
+      matchReason: `Matched by ColourPlus server to ${code} (${mp.firm_name})`,
+    };
+  }
+
   const city = lead.location?.city || '';
   const state = lead.location?.state || '';
   const address = lead.location?.address || '';

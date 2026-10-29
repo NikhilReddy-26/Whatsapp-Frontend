@@ -1,213 +1,309 @@
 /**
  * ColourPlus Lead Desk - Backend API Endpoints & Contract Definitions
- * 
- * This file centralizes all backend endpoint URLs, request payload types,
- * and response contracts for connecting the Frontend to FastAPI / Express / PostgreSQL.
+ *
+ * Mirrors the backend team's API docs (00_ADMIN_AND_AUTHENTICATION.md … 04_CAMPAIGNS_API.md).
+ * Every response is wrapped in the envelope `{ success, data }` / `{ success: false, error }`.
  */
 
-import type {
-  Lead,
-  Message,
-  KpiData,
-  Appointment,
-  Followup,
-  CRMSettings,
-  PipelineStage,
-  ChannelPartner,
-  ChannelPartnerLead,
-  Applicator,
-  ApplicatorLead,
-  CampaignAnalyticsMetric,
-  ScoreBreakdown,
-  FlooringAreaCategory,
-  ExtractedField,
-} from '../types/crm';
+// Base API URL configured via Vite environment variables.
+// In dev the default '/api/v1' is proxied to the backend by vite.config.ts (avoids CORS).
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '');
 
-// Base API URL configured via Vite environment variables
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// Set VITE_USE_MOCK_API=true to run the whole UI against the bundled demo data (no backend needed).
+export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 export const API_ENDPOINTS = {
-  // --- 1. HEALTH & SYSTEM ---
-  HEALTH: `${API_BASE_URL}/health`,
+  // --- AUTH ---
+  AUTH_LOGIN: `${API_BASE_URL}/auth/login`,
 
-  // --- 2. KPIS & ANALYTICS ---
-  KPIS: `${API_BASE_URL}/kpis`,
-  CAMPAIGN_ANALYTICS: `${API_BASE_URL}/analytics/campaigns`,
-
-  // --- 3. LEADS MANAGEMENT ---
+  // --- LEADS ---
   LEADS: `${API_BASE_URL}/leads`,
   LEAD_BY_ID: (id: string) => `${API_BASE_URL}/leads/${id}`,
   LEAD_ASSIGN: (id: string) => `${API_BASE_URL}/leads/${id}/assign`,
   LEADS_BULK_ASSIGN: `${API_BASE_URL}/leads/bulk-assign`,
   LEAD_STAGE: (id: string) => `${API_BASE_URL}/leads/${id}/stage`,
-  LEAD_NOTES: (id: string) => `${API_BASE_URL}/leads/${id}/notes`,
   LEAD_AI_STATUS: (id: string) => `${API_BASE_URL}/leads/${id}/ai-status`,
-  LEAD_SCORE: (id: string) => `${API_BASE_URL}/leads/${id}/score`,
-  LEAD_FLOORING_CATEGORY: (id: string) => `${API_BASE_URL}/leads/${id}/flooring-category`,
-  LEAD_EXTRACTED_FIELDS: (id: string) => `${API_BASE_URL}/leads/${id}/extracted-fields`,
-
-  // --- 4. WHATSAPP CHAT & MESSAGES ---
+  LEAD_NOTES: (id: string) => `${API_BASE_URL}/leads/${id}/notes`,
   LEAD_MESSAGES: (id: string) => `${API_BASE_URL}/leads/${id}/messages`,
-  WHATSAPP_WEBHOOK: `${API_BASE_URL}/webhooks/whatsapp`,
+  LEAD_EXTRACTED_FIELDS: (id: string) => `${API_BASE_URL}/leads/${id}/extracted-fields`,
+  LEAD_SITE_VISITS: (id: string) => `${API_BASE_URL}/leads/${id}/site-visits`,
 
-  // --- 5. SITE VISITS & APPOINTMENTS ---
-  APPOINTMENTS: `${API_BASE_URL}/appointments`,
-  APPOINTMENT_BY_ID: (id: string) => `${API_BASE_URL}/appointments/${id}`,
+  // --- SITE VISITS ---
+  SITE_VISITS: `${API_BASE_URL}/site-visits`,
+  SITE_VISIT_BY_ID: (id: string) => `${API_BASE_URL}/site-visits/${id}`,
 
-  // --- 6. FOLLOW-UP TASKS ---
-  FOLLOWUPS: `${API_BASE_URL}/followups`,
-  FOLLOWUP_TOGGLE: (id: string) => `${API_BASE_URL}/followups/${id}/toggle-status`,
+  // --- CHANNEL PARTNERS ---
+  PARTNERS: `${API_BASE_URL}/partners`,
+  PARTNER_BY_ID: (id: string) => `${API_BASE_URL}/partners/${id}`,
 
-  // --- 7. CRM SETTINGS & MASTER DATA ---
+  // --- CAMPAIGNS ---
+  CAMPAIGNS: `${API_BASE_URL}/campaigns`,
+  CAMPAIGN_BY_ID: (id: string) => `${API_BASE_URL}/campaigns/${id}`,
+
+  // --- SETTINGS & KPIS ---
   SETTINGS: `${API_BASE_URL}/settings`,
-  SETTINGS_RESET: `${API_BASE_URL}/settings/reset-defaults`,
-  SETTINGS_PRODUCTS: `${API_BASE_URL}/settings/products`,
-  SETTINGS_PRODUCT_DELETE: (productName: string) => `${API_BASE_URL}/settings/products/${encodeURIComponent(productName)}`,
-  SETTINGS_STATES: `${API_BASE_URL}/settings/states`,
-  SETTINGS_STATE_DELETE: (stateName: string) => `${API_BASE_URL}/settings/states/${encodeURIComponent(stateName)}`,
-  SETTINGS_SECTORS: `${API_BASE_URL}/settings/facility-sectors`,
-  SETTINGS_SECTOR_DELETE: (sectorName: string) => `${API_BASE_URL}/settings/facility-sectors/${encodeURIComponent(sectorName)}`,
-
-  // --- 8. CHANNEL PARTNERS / SALES REPS ---
-  CHANNEL_PARTNERS: `${API_BASE_URL}/channel-partners`,
-  CHANNEL_PARTNER_BY_ID: (id: string) => `${API_BASE_URL}/channel-partners/${id}`,
-  CHANNEL_PARTNER_LEADS: `${API_BASE_URL}/channel-partners/leads`,
-  CHANNEL_PARTNER_LEAD_APPROVE: (id: string) => `${API_BASE_URL}/channel-partners/leads/${id}/approve`,
-  CHANNEL_PARTNER_LEAD_BY_ID: (id: string) => `${API_BASE_URL}/channel-partners/leads/${id}`,
-
-  // --- 9. CERTIFIED APPLICATORS ---
-  APPLICATORS: `${API_BASE_URL}/applicators`,
-  APPLICATOR_BY_ID: (id: string) => `${API_BASE_URL}/applicators/${id}`,
-  APPLICATOR_LEADS: `${API_BASE_URL}/applicators/leads`,
-  APPLICATOR_LEAD_APPROVE: (id: string) => `${API_BASE_URL}/applicators/leads/${id}/approve`,
-  APPLICATOR_LEAD_BY_ID: (id: string) => `${API_BASE_URL}/applicators/leads/${id}`,
+  KPIS: `${API_BASE_URL}/kpis`,
 } as const;
 
 // ============================================================================
-// REQUEST PAYLOAD INTERFACES
+// RESPONSE ENVELOPE
 // ============================================================================
 
-export interface AssignLeadPayload {
-  assignee: string;
-  sendWhatsappAlert?: boolean;
-  sendEmailAlert?: boolean;
-  partner?: ChannelPartner | null;
+export type ApiEnvelope<T> = { success: true; data: T } | { success: false; error: string };
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
 }
 
-export interface BulkAssignPayload {
-  lead_ids: string[];
-  assignee: string;
-  sendWhatsappAlert?: boolean;
-  sendEmailAlert?: boolean;
+export interface Paginated<T> {
+  pagination?: PaginationInfo;
+  items?: T[];
+  data?: T[] | { items: T[]; pagination?: PaginationInfo };
 }
 
-export interface UpdateStagePayload {
-  stage: PipelineStage;
+// ============================================================================
+// AUTH
+// ============================================================================
+
+export type BackendUserRole = 'ADMIN' | 'MANAGER' | 'SALES' | 'VIEWER';
+
+export interface BackendUser {
+  id: string;
+  name: string;
+  email: string;
+  role: BackendUserRole;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface AddNotePayload {
-  text: string;
+export interface LoginResponse {
+  access_token?: string;
+  refresh_token?: string;
+  id_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  token?: string;
+  user: BackendUser;
 }
 
-export interface ToggleAiPayload {
-  ai_active: boolean;
+// ============================================================================
+// LEADS
+// ============================================================================
+
+export type BackendLeadBand = 'HOT' | 'WARM' | 'NURTURE' | 'out_of_scope' | 'OUT_OF_SCOPE';
+export type BackendLeadStage = 'NEW' | 'QUALIFIED' | 'ASSIGNED' | 'VISIT_SCHEDULED' | 'WON' | 'LOST' | string;
+
+export interface BackendMatchedPartner {
+  code: string;
+  firm_name: string;
+  territory: string;
+  tier: string;
+  full_address: string;
+  google_maps_url?: string;
 }
 
-export interface UpdateScorePayload {
-  lead_score: number;
-  score_breakdown: ScoreBreakdown;
+export interface BackendExtractedField {
+  key: string;
+  value: string;
+  confidence?: number; // 0-100 or 0-1
 }
 
-export interface UpdateFlooringCategoryPayload {
-  category: FlooringAreaCategory;
-  sub_type?: string;
+export interface BackendScoreBreakdown {
+  overall_score?: number;
+  band?: BackendLeadBand;
+  confidence?: number; // 0-100
+  fit_and_spec?: number;
+  fit_and_spec_max?: number;
+  opportunity_scale?: number;
+  opportunity_scale_max?: number;
+  commercial_intent?: number;
+  commercial_intent_max?: number;
+  timeline_urgency?: number;
+  timeline_urgency_max?: number;
+  data_completeness?: number;
+  data_completeness_max?: number;
+  reasons?: string[];
+  summary_quote?: string;
 }
 
-export interface AddExtractedFieldPayload {
-  field: ExtractedField;
+export interface BackendFacts {
+  address_text?: string;
+  area_sqft?: number;
+  assigned_partner?: string;
+  city?: string;
+  company_name?: string;
+  confidence?: number;
+  facility_sector?: string;
+  facility_specifics?: string;
+  lat?: string | number;
+  lng?: string | number;
+  matched_partner?: BackendMatchedPartner;
+  product_specification?: string;
+  quote_text?: string;
+  recommended_product?: string;
+  timeline_days?: number;
+  summary_quote?: string;
+  extracted_technical_fields?: BackendExtractedField[];
+  [key: string]: unknown;
 }
 
-export interface SendMessagePayload {
-  text: string;
-  sender: 'user' | 'bot' | 'human';
-  ai_generated?: boolean;
+export interface BackendLead {
+  id: string;
+  ref_no: string;
+  contact_id?: string;
+  contact_name: string;
+  contact_phone: string;
+  campaign_id: string | null;
+  campaign_name: string | null;
+  company_name: string | null;
+  area_sqft: number | null;
+  timeline_days: number | null;
+  city: string | null;
+  address_text: string | null;
+  lat: number | null;
+  lng: number | null;
+  product: string | null;
+  recommended_product?: string | null;
+  product_specification?: string | null;
+  facility_sector?: string | null;
+  facility_specifics?: string | null;
+  quote_text?: string | null;
+  stage: BackendLeadStage;
+  band: BackendLeadBand;
+  score_total: number;
+  score_fit?: number;
+  score_opportunity?: number;
+  score_intent?: number;
+  score_urgency?: number;
+  score_completeness?: number;
+  score_reasons?: string[] | null;
+  bot_status: string;
+  needs_human: boolean;
+  assigned_partner?: string | null;
+  matched_partner?: BackendMatchedPartner | null;
+  extracted_technical_fields?: BackendExtractedField[] | null;
+  score_breakdown?: BackendScoreBreakdown | null;
+  facts?: BackendFacts;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface CreateAppointmentPayload {
+export interface LeadListQuery {
+  page?: number;
+  limit?: number;
+  q?: string;
+  search?: string;
+  campaign_id?: string;
+  campaign?: string;
+  product?: string;
+  month?: string;
+  date?: string;
+  state?: string;
+  territory?: string;
+  facility_sector?: string;
+  assignment?: 'assigned' | 'unassigned';
+  today?: boolean;
+  band?: string;
+  stage?: BackendLeadStage;
+  needs_human?: boolean;
+  assigned_to?: string;
+}
+
+// ============================================================================
+// SITE VISITS
+// ============================================================================
+
+export type BackendSiteVisitStatus = 'SCHEDULED' | 'RESCHEDULED' | 'COMPLETED' | 'CANCELLED';
+
+export interface BackendSiteVisit {
+  id: string;
   lead_id: string;
-  lead_name: string;
-  company: string;
-  date: string;       // YYYY-MM-DD
-  time: string;       // e.g. "10:30 AM"
-  location: string;
-  engineer: string;
+  contact_name?: string;
+  company_name?: string;
+  area_sqft?: number;
+  city?: string;
+  visit_date: string;
+  time_slot: string;
+  field_engineer_assigned: string;
+  field_engineer_id?: string | null;
+  site_address: string;
+  inspection_objectives: string;
+  status: BackendSiteVisitStatus;
+  notes?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateSiteVisitPayload {
+  lead_id?: string; // only for the standalone POST /site-visits
+  visit_date: string;
+  time_slot: string;
+  field_engineer_assigned: string;
+  field_engineer_id?: string;
+  site_address: string;
+  inspection_objectives: string;
   notes?: string;
 }
 
-export interface CreateFollowupPayload {
-  lead_id: string;
-  lead_name: string;
-  company: string;
-  title: string;
-  description: string;
-  due_date: string;
-  type: 'call' | 'visit' | 'quote' | 'review' | 'manual';
-}
+export type UpdateSiteVisitPayload = Partial<Omit<CreateSiteVisitPayload, 'lead_id'>> & {
+  status?: BackendSiteVisitStatus;
+};
 
-export interface AddProductPayload {
-  name: string;
-}
+// ============================================================================
+// CHANNEL PARTNERS
+// ============================================================================
 
-export interface AddStatePayload {
-  name: string;
-}
+export type BackendPartnerTier = 'TIER_1' | 'TIER_2' | 'TIER_3';
 
-export interface AddFacilitySectorPayload {
-  name: string;
-}
-
-export interface CreateChannelPartnerPayload {
-  id?: string;
-  name: string;
-  role: string;
-  email?: string;
+export interface BackendPartner {
+  id: string;
+  partner_code: string;
+  firm_name: string;
+  contact_person?: string | null;
+  role_designation?: string | null;
   state: string;
-  whatsapp_number: string;
-  territory_id?: string;
-  territory_name?: string;
-  cities?: string[];
-  priority_tier?: string;
-  demand_drivers?: string;
+  territory_name?: string | null;
+  priority_tier?: BackendPartnerTier | null;
+  covered_cities?: string[] | null;
+  phone_e164: string;
+  email?: string | null;
+  focus_industries?: string | null;
+  is_active: boolean;
+  assigned_leads_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface CreateApplicatorPayload {
-  name: string;
-  agency: string;
-  specialization: string;
-  city: string;
+export interface CreatePartnerPayload {
+  partner_code: string;
+  firm_name: string;
+  contact_person?: string;
+  role_designation: string;
   state: string;
-  phone: string;
-  experienceYears: number;
+  territory_name: string;
+  priority_tier: BackendPartnerTier;
+  covered_cities: string[];
+  phone_e164: string;
+  email: string;
+  focus_industries?: string;
+  is_active?: boolean;
 }
 
 // ============================================================================
-// GENERIC API RESPONSE CONTRACT
+// CAMPAIGNS
 // ============================================================================
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-  timestamp: string;
-}
-
-export interface ApiErrorResponse {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-  timestamp: string;
+export interface BackendCampaign {
+  id: string;
+  name: string;
+  code: string;
+  product: string;
+  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+  leads_count: number;
+  created_at: string;
 }

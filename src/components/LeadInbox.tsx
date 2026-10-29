@@ -33,6 +33,7 @@ import {
 import type { Lead, FunnelCategory, ChannelPartner, FlooringAreaCategory } from '../types/crm';
 import { COLOURPLUS_PRODUCTS } from '../types/crm';
 import type { AssignLeadOptions } from '../services/api';
+import { USE_MOCK_API } from '../services/endpoints';
 import {
   isCityInState,
   getTerritoriesForState,
@@ -62,10 +63,12 @@ interface LeadInboxProps {
   availableProducts?: string[];
   availableStates?: string[];
   availableFlooringAreas?: string[];
+  availableCampaigns?: string[];
 }
 
 export const LeadInbox: React.FC<LeadInboxProps> = ({
   leads,
+  selectedLeadId,
   onSelectLead,
   activeFilter,
   setActiveFilter,
@@ -78,10 +81,20 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
   availableProducts: availableProductsProp,
   availableStates: availableStatesProp,
   availableFlooringAreas: availableFlooringAreasProp,
+  availableCampaigns: availableCampaignsProp,
 }) => {
   const { toast } = useToast();
   const shouldReduceMotion = useReducedMotion();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   const [selectedCampaign, setSelectedCampaign] = useState<string>('ALL');
   const [selectedProduct, setSelectedProduct] = useState<string>('ALL');
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
@@ -95,9 +108,9 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
   const [bulkTargetLeadIds, setBulkTargetLeadIds] = useState<string[]>([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
 
-  // Dynamically extract unique campaigns from leads
+  // Campaigns from the Campaigns API, plus any campaign names found on the leads
   const availableCampaigns = Array.from(
-    new Set(leads.map((l) => l.campaign).filter(Boolean))
+    new Set([...(availableCampaignsProp || []), ...leads.map((l) => l.campaign)].filter(Boolean))
   ).sort();
 
   // Dynamic products list from settings master data or fallback to COLOURPLUS_PRODUCTS
@@ -237,8 +250,8 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
 
     if (selectedFlooringArea !== 'ALL' && lead.flooring_category !== selectedFlooringArea) return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearchQuery.trim()) {
+      const q = debouncedSearchQuery.toLowerCase().trim();
       const suggestion = findSuggestedChannelPartner(lead, channelPartners);
       const territoryMatches = Boolean(
         suggestion.territory && (
@@ -251,6 +264,8 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
       return (
         lead.name.toLowerCase().includes(q) ||
         lead.company.toLowerCase().includes(q) ||
+        (lead.ref_no && lead.ref_no.toLowerCase().includes(q)) ||
+        lead.whatsapp_number.replace(/\s/g, '').includes(q.replace(/\s/g, '')) ||
         lead.campaign.toLowerCase().includes(q) ||
         (lead.product && lead.product.toLowerCase().includes(q)) ||
         lead.location.city.toLowerCase().includes(q) ||
@@ -330,8 +345,9 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
   };
 
   const isLeadToday = (lead: Lead) => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (lead.created_at && lead.created_at.startsWith(todayStr)) return true;
+    // Compare in local time: backend timestamps are UTC ("...Z")
+    if (lead.created_at && new Date(lead.created_at).toDateString() === new Date().toDateString()) return true;
+    if (!USE_MOCK_API) return false;
     if (lead.next_action?.due_date?.toLowerCase().includes('today')) return true;
     if (lead.status === 'New') return true;
     if (lead.created_at && (lead.created_at.startsWith('2026-10-07') || lead.created_at.startsWith('2026-10-08'))) return true;
@@ -858,14 +874,16 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
           >
           <AnimatePresence mode="popLayout">
             {filteredLeads.map((lead, idx) => {
-              const isSelected = selectedLeadIds.includes(lead.id);
+              const isChecked = selectedLeadIds.includes(lead.id);
+              const isCardSelected = selectedLeadId === lead.id;
               const isHot = lead.funnel === 'HOT';
               const isUrgent = (lead.unreplied_hours || 0) >= 20;
               const isAssigned = Boolean(
-                lead.assigned_to &&
-                lead.assigned_to.trim() !== '' &&
-                !lead.assigned_to.toLowerCase().includes('unassigned') &&
-                !lead.assigned_to.toLowerCase().includes('disqualification')
+                (lead.assigned_partner && !lead.assigned_partner.toLowerCase().includes('unassigned')) ||
+                (lead.assigned_to &&
+                  lead.assigned_to.trim() !== '' &&
+                  !lead.assigned_to.toLowerCase().includes('unassigned') &&
+                  !lead.assigned_to.toLowerCase().includes('disqualification'))
               );
               const territorySuggestion = findSuggestedChannelPartner(lead, channelPartners);
 
@@ -905,8 +923,10 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                   whileHover={shouldReduceMotion ? undefined : { y: -3, transition: { duration: 0.18 } }}
                   onClick={() => onSelectLead(lead.id)}
                   className={`group relative bg-surface border rounded-card p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between overflow-hidden shadow-elevation-1 hover:shadow-elevation-2 select-none ${
-                    isSelected
-                      ? 'border-brand-navy ring-2 ring-brand-navy/30 bg-surface-elevated'
+                    isCardSelected
+                      ? 'border-brand-navy ring-2 ring-brand-navy/40 bg-surface-elevated shadow-elevation-2'
+                      : isChecked
+                      ? 'border-brand-navy ring-1 ring-brand-navy/30 bg-surface-elevated'
                       : isHot
                       ? 'border-funnel-hotBorder/80 hover:border-funnel-hot shadow-glow-hot/20'
                       : 'border-border-subtle hover:border-border-strong'
@@ -927,7 +947,7 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                         <div
                           onClick={(e) => handleToggleSelectLead(lead.id, e)}
                           className={`mt-0.5 w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
-                            isSelected
+                            isChecked
                               ? 'bg-brand-navy border-brand-navy text-white shadow-2xs'
                               : 'bg-surface-subtle border-border-base text-transparent hover:border-border-strong'
                           }`}
@@ -936,7 +956,7 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="text-base font-bold text-text-primary group-hover:text-brand-navy transition-colors truncate">
                               {lead.name}
                             </h3>
@@ -949,8 +969,14 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                                 Agent
                               </Badge>
                             )}
+                            {lead.needs_human && (
+                              <Badge variant="hot" size="xs" icon={<Users className="w-3 h-3" />}>
+                                Needs Human
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-xs text-text-secondary truncate mt-0.5 font-medium">
+                            {lead.ref_no && <span className="font-mono text-text-tertiary mr-1.5">{lead.ref_no}</span>}
                             {lead.company}
                           </p>
                         </div>
@@ -1003,8 +1029,24 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                       )}
                     </div>
 
-                    {/* Matched Territory & Channel Partner Suggestion */}
-                    {territorySuggestion.territory && (
+                    {/* Matched Territory & Channel Partner */}
+                    {lead.matched_partner ? (
+                      <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-subtle border border-brand-navy/15 text-[11px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-mono font-bold text-brand-navy dark:text-blue-400 shrink-0">
+                            {lead.matched_partner.code}
+                          </span>
+                          <span className="text-text-secondary truncate font-medium">
+                            {lead.matched_partner.firm_name}
+                          </span>
+                        </div>
+                        {lead.matched_partner.tier && (
+                          <span className="shrink-0 text-[10px] font-mono font-bold text-brand-green dark:text-emerald-400 bg-brand-green/10 px-1.5 py-0.5 rounded border border-brand-green/20">
+                            {lead.matched_partner.tier}
+                          </span>
+                        )}
+                      </div>
+                    ) : territorySuggestion.territory ? (
                       <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-subtle border border-brand-navy/15 text-[11px]">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="font-mono font-bold text-brand-navy dark:text-blue-400 shrink-0">
@@ -1020,9 +1062,9 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                           </span>
                         )}
                       </div>
-                    )}
+                    ) : null}
 
-                    {/* SLA SLA Badge if unreplied */}
+                    {/* SLA Badge if unreplied */}
                     {isUrgent && (
                       <div className="flex items-center justify-between text-[11px] bg-funnel-hotBg text-funnel-hot border border-funnel-hotBorder/50 px-2.5 py-1 rounded-lg font-bold">
                         <span className="flex items-center gap-1">
@@ -1038,7 +1080,7 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                   <div className={`pt-3.5 mt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-tertiary min-h-[32px]`}>
                     {isAssigned ? (
                       <span className="truncate font-medium pr-2 text-xs">
-                        Assigned: <strong className="text-text-primary">{lead.assigned_to}</strong>
+                        Assigned: <strong className="text-text-primary">{lead.assigned_partner || lead.assigned_to}</strong>
                       </span>
                     ) : territorySuggestion.partner ? (
                       <button
