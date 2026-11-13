@@ -12,7 +12,7 @@ function createDevJwt(email: string): string {
     const payload = btoa(JSON.stringify({
       sub: email,
       email: email,
-      iss: 'https://func-leads-dev-4rdgi.azurewebsites.net',
+      iss: 'https://func-leads-dev-hrhw6.azurewebsites.net',
       aud: 'colourplus-lead-desk',
       exp: exp,
       iat: Math.floor(Date.now() / 1000),

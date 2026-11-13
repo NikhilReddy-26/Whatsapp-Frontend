@@ -234,7 +234,7 @@ export interface CRMSettings {
   facility_sectors: string[];
 }
 
-export type ActivePageView = 'desk' | 'analytics' | 'appointments' | 'channel_partners' | 'applicators' | 'simulator' | 'settings';
+export type ActivePageView = 'desk' | 'analytics' | 'appointments' | 'channel_partners' | 'applicators' | 'broadcast' | 'simulator' | 'settings';
 
 export interface CampaignAnalyticsMetric {
   campaign: string;

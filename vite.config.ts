@@ -11,9 +11,9 @@ export default defineConfig(({ mode }) => {
       // Dev only: forward /api/* to the Go backend so the browser never hits CORS
       proxy: {
         '/api': {
-          target: env.VITE_BACKEND_PROXY_TARGET || 'https://func-leads-dev-4rdgi.azurewebsites.net',
+          target: env.VITE_BACKEND_PROXY_TARGET || 'https://func-leads-dev-hrhw6.azurewebsites.net',
           changeOrigin: true,
-          secure: false,
+          secure: true,
         },
       },
     },
