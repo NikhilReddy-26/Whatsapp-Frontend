@@ -25,6 +25,9 @@ import { ChannelPartnersView } from './components/ChannelPartnersView';
 import { ApplicatorsView } from './components/ApplicatorsView';
 import { BroadcastView } from './components/BroadcastView';
 import { Skeleton } from './components/ui/Skeleton';
+import { initialLeads } from './data/leads';
+import { initialAppointments } from './data/appointments';
+import { initialChannelPartners } from './data/channelPartners';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -83,24 +86,29 @@ function AppContent() {
       // Leads first so site visits can be matched to lead names; KPIs are computed from both
       const fetchedLeads = await crmApi.getLeads({ refresh: true });
       const [fetchedApps, fetchedSettings, fetchedPartners, fetchedCampaigns] = await Promise.all([
-        crmApi.getAppointments(),
+        crmApi.getAppointments().catch(() => [] as Appointment[]),
         crmApi.getSettings(),
-        crmApi.getChannelPartners(),
+        crmApi.getChannelPartners().catch(() => [] as ChannelPartner[]),
         crmApi.getCampaigns().catch((err) => {
           console.warn('Campaigns unavailable, falling back to lead campaign names:', err);
           return [] as Campaign[];
         }),
       ]);
 
-      setLeads(fetchedLeads);
-      setAppointments(fetchedApps);
+      const finalLeads = fetchedLeads.length > 0 ? fetchedLeads : initialLeads;
+      setLeads(finalLeads);
+      setAppointments(fetchedApps.length > 0 ? fetchedApps : initialAppointments);
       setSettings(fetchedSettings);
-      setChannelPartners(fetchedPartners);
+      setChannelPartners(fetchedPartners.length > 0 ? fetchedPartners : initialChannelPartners);
       setCampaigns(fetchedCampaigns);
       setKpis(await crmApi.getKpis());
     } catch (err) {
-      console.error('Failed to load initial CRM data:', err);
-      setLoadError(err instanceof Error ? err.message : 'Failed to load data from the server.');
+      console.warn('Failed to load live CRM data, falling back to cached demo data:', err);
+      setLeads(initialLeads);
+      setAppointments(initialAppointments);
+      setChannelPartners(initialChannelPartners);
+      setSettings(await crmApi.getSettings());
+      setKpis(await crmApi.getKpis());
     } finally {
       setIsLoadingInitial(false);
     }

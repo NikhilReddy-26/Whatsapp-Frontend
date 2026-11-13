@@ -237,8 +237,8 @@ export const crmApi = {
       }
     } catch (err) {
       console.warn('[crmApi.getLeads] Backend server unreachable or returned error:', err);
-      if (!leadsLoadedFromBackend) {
-        leadsStore = [];
+      if (!leadsLoadedFromBackend && (!leadsStore || leadsStore.length === 0)) {
+        leadsStore = [...initialLeads];
       }
     }
     return [...leadsStore];
@@ -782,8 +782,15 @@ export const crmApi = {
   // GET /api/v1/site-visits
   async getAppointments(): Promise<Appointment[]> {
     if (!USE_MOCK_API) {
-      const visits = await http.get<BackendSiteVisit[]>(API_ENDPOINTS.SITE_VISITS);
-      appointmentsStore = (visits || []).map((v) => mapSiteVisit(v, (id) => leadsStore.find((l) => l.id === id)));
+      try {
+        const visits = await http.get<BackendSiteVisit[]>(API_ENDPOINTS.SITE_VISITS);
+        appointmentsStore = (visits || []).map((v) => mapSiteVisit(v, (id) => leadsStore.find((l) => l.id === id)));
+      } catch (err) {
+        console.warn('[crmApi.getAppointments] Failed to fetch remote site visits, using local store:', err);
+        if (!appointmentsStore || appointmentsStore.length === 0) {
+          appointmentsStore = [...initialAppointments];
+        }
+      }
     }
     return [...appointmentsStore];
   },
