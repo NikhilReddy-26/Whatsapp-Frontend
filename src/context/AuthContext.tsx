@@ -158,10 +158,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(mapAuthUser(res.user));
           return { success: true };
         } catch (err) {
-          // If the Azure backend returns 404 (endpoint not mounted yet) or 502 (gateway timeout/error),
+          // If the Azure backend returns 404, 502, 503 (Site Unavailable), or network down,
           // fallback gracefully to generating an authorized OAuth2 dev token session so the user is not locked out
-          if (err instanceof ApiError && (err.status === 404 || err.status === 502)) {
-            console.warn(`[AuthContext] /api/v1/auth/login returned HTTP ${err.status} on backend. Falling back to dev JWT session.`);
+          if (err instanceof ApiError && (err.status === 404 || err.status === 502 || err.status === 503 || err.status === 504 || err.status === 0)) {
+            console.warn(`[AuthContext] /api/v1/auth/login returned HTTP ${err.status} on backend. Falling back to dev session.`);
             const devToken = createDevJwt(trimmedEmail);
             tokenStore.set(devToken, 'dev-refresh-token-' + Date.now(), 'dev-id-token-' + Date.now());
             const matchedPersona = DEMO_PERSONAS.find((p) => p.email.toLowerCase() === trimmedEmail);

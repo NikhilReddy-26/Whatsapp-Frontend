@@ -152,6 +152,13 @@ export interface ExtractedChip {
   value: string;
 }
 
+export interface ConversationComposeState {
+  can_reply: boolean;
+  reason?: 'WINDOW_CLOSED' | 'OPTED_OUT' | 'LEAD_CLOSED' | 'FORBIDDEN' | string;
+  will_take_over?: boolean;
+  window_expires_at?: string;
+}
+
 export interface Message {
   id: string;
   lead_id: string;
@@ -163,6 +170,14 @@ export interface Message {
   timestamp: string;
   pacing_delay?: string;
   extracted_chips?: ExtractedChip[];
+  status?: string;
+  status_icon?: string;
+  ai_generated?: boolean;
+  sender_label?: string;
+  created_at?: string;
+  side?: string;
+  sent_by?: { id: string; name: string } | null;
+  day?: string;
 }
 
 export interface Appointment {

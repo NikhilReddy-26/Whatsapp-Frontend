@@ -325,7 +325,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
 
   return (
     <motion.div
-      variants={staggerContainer}
+      variants={staggerContainer()}
       initial="initial"
       animate="animate"
       className="space-y-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6"
@@ -353,7 +353,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={downloadSampleTemplate}
               className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-bold"
@@ -408,7 +408,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
                 </div>
               </div>
               {selectedFile && (
-                <Badge variant="success" size="sm">
+                <Badge variant="green" size="sm">
                   File Ready
                 </Badge>
               )}
@@ -446,7 +446,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
                     Supports Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf), Word (.docx) or Images up to 25MB
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="pointer-events-none mt-2">
+                <Button variant="secondary" size="sm" className="pointer-events-none mt-2">
                   Browse Files
                 </Button>
               </div>
@@ -647,7 +647,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span className="truncate font-semibold">{selectedFile.name}</span>
                 </div>
-                <Badge variant="success" size="sm">Attached</Badge>
+                <Badge variant="green" size="sm">Attached</Badge>
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-surface-subtle border border-border-subtle text-xs text-text-tertiary flex items-center space-x-2">
@@ -700,7 +700,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
                   className="flex-1 px-3 py-1.5 rounded-lg border border-border-base bg-surface text-xs font-mono text-text-primary"
                 />
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleSendTestMessage}
                   className="text-xs shrink-0"
@@ -756,7 +756,7 @@ export const BroadcastView: React.FC<BroadcastViewProps> = ({
                   <td className="py-3.5 px-4 font-bold">{item.recipientCount} Contacts</td>
                   <td className="py-3.5 px-4 text-text-tertiary">{item.sentAt}</td>
                   <td className="py-3.5 px-4">
-                    <Badge variant="success" size="sm">
+                    <Badge variant="green" size="sm">
                       {item.status}
                     </Badge>
                   </td>

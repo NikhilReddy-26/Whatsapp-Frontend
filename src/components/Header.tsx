@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Layers, Calendar, BarChart3, Users, Paintbrush, Settings as SettingsIcon, ArrowUpRight, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, X, Layers, Calendar, BarChart3, Users, Paintbrush, Megaphone, Settings as SettingsIcon, LogOut, ChevronDown } from 'lucide-react';
 import type { ActivePageView } from '../types/crm';
 import { ThemeToggle } from './ui/ThemeToggle';
-import { Button } from './ui/Button';
 import { AnimatedLogo } from './AnimatedLogo';
 import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   activePage: ActivePageView;
   setActivePage: (page: ActivePageView) => void;
-  onAssignLeadClick: () => void;
+  onAssignLeadClick?: () => void;
   unrepliedCount?: number;
 }
 
@@ -59,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'appointments', label: 'Site Visits', icon: <Calendar className="w-4 h-4" /> },
     { id: 'channel_partners', label: 'Channel Partners', icon: <Users className="w-4 h-4" /> },
     { id: 'applicators', label: 'Applicators', icon: <Paintbrush className="w-4 h-4" /> },
+    { id: 'broadcast', label: 'Broadcast', icon: <Megaphone className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
   ];
 
@@ -145,21 +145,9 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* RIGHT: Theme Toggle & Quick Action & User Profile */}
+        {/* RIGHT: Theme Toggle & User Profile */}
         <div className="flex items-center space-x-2.5 sm:space-x-3">
           <ThemeToggle />
-
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={onAssignLeadClick}
-            rightIcon={<ArrowUpRight className="w-4 h-4 text-blue-200" />}
-            className="rounded-full shadow-elevation-1"
-            title="Assign selected or filtered leads"
-          >
-            <span className="hidden sm:inline">Assign Leads</span>
-            <span className="sm:hidden">Assign</span>
-          </Button>
 
           {/* User Profile Pill & Lock Terminal Dropdown */}
           {user && (

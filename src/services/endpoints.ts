@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
   LEAD_AI_STATUS: (id: string) => `${API_BASE_URL}/leads/${id}/ai-status`,
   LEAD_NOTES: (id: string) => `${API_BASE_URL}/leads/${id}/notes`,
   LEAD_MESSAGES: (id: string) => `${API_BASE_URL}/leads/${id}/messages`,
+  LEAD_CHAT: (id: string) => `${API_BASE_URL}/leads/${id}/chat`,
   LEAD_EXTRACTED_FIELDS: (id: string) => `${API_BASE_URL}/leads/${id}/extracted-fields`,
   LEAD_SITE_VISITS: (id: string) => `${API_BASE_URL}/leads/${id}/site-visits`,
 
