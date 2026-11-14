@@ -1,4 +1,4 @@
-import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign, ConversationComposeState } from '../types/crm';
+import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign, ConversationComposeState, AnalyticsOverviewResponse } from '../types/crm';
 import { API_ENDPOINTS, USE_MOCK_API } from './endpoints';
 import type { BackendLead, BackendSiteVisit, BackendPartner, BackendCampaign, Paginated, UpdateSiteVisitPayload, LeadListQuery } from './endpoints';
 import { http } from './http';
@@ -14,6 +14,13 @@ import { initialChannelPartners } from '../data/channelPartners';
 import { initialChannelPartnerLeads } from '../data/channelPartnerLeads';
 import { initialApplicators } from '../data/applicators';
 import { initialApplicatorLeads } from '../data/applicatorLeads';
+import {
+  getRealtimeMessagingStats,
+  getCampaignAnalyticsList,
+  getHourlyLeadDistribution,
+  getDayOfWeekLeadTrends,
+  getCampaignTimingRecommendation,
+} from '../data/analytics';
 import { formatLeadAssignmentMessage } from '../utils/formatAssignmentMessage';
 
 import { findSuggestedChannelPartner } from '../data/territories';
@@ -1209,6 +1216,58 @@ export const crmApi = {
     applicatorLeadsStore = applicatorLeadsStore.filter((l) => l.id !== leadId);
     saveToStorage(DB_STORAGE_KEYS.APPLICATOR_LEADS, applicatorLeadsStore);
     return Promise.resolve(true);
-  }
+  },
+
+  // =========================================================================
+  // --- ANALYTICS ---
+  // =========================================================================
+  async getAnalyticsOverview(
+    window: 'today' | '7d' | '30d' | 'all' = '7d',
+    campaignId?: string
+  ): Promise<AnalyticsOverviewResponse> {
+    if (USE_MOCK_API) {
+      const filteredLeads = campaignId && campaignId !== 'ALL'
+        ? leadsStore.filter((l) => l.campaign === campaignId || l.id === campaignId)
+        : leadsStore;
+      const summary = getRealtimeMessagingStats(filteredLeads);
+      const hourly = getHourlyLeadDistribution();
+      const weekdays = getDayOfWeekLeadTrends();
+      const timing = getCampaignTimingRecommendation();
+      const campaigns = getCampaignAnalyticsList(leadsStore);
+
+      return Promise.resolve({
+        window,
+        from: new Date().toISOString(),
+        to: new Date().toISOString(),
+        summary: {
+          ...summary,
+          total_leads_qualified: filteredLeads.filter(
+            (l) => l.status === 'Qualified' || l.stage === 'Visit' || l.stage === 'Quote'
+          ).length,
+          deltas: {
+            delivery_rate: 0.6,
+            read_rate: 2.1,
+            reply_rate: 5.4,
+            lead_generation_rate: 3.4,
+          },
+        },
+        hourly,
+        weekdays,
+        timing: {
+          ...timing,
+          best_days_short: 'Tue–Thu',
+          sample_size: leadsStore.length,
+        },
+        campaigns,
+      });
+    }
+
+    const query: Record<string, string> = { window };
+    if (campaignId && campaignId !== 'ALL') {
+      query.campaign_id = campaignId;
+    }
+
+    return await http.get<AnalyticsOverviewResponse>(API_ENDPOINTS.ANALYTICS_OVERVIEW, query);
+  },
 };
 

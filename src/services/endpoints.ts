@@ -44,6 +44,14 @@ export const API_ENDPOINTS = {
   // --- SETTINGS & KPIS ---
   SETTINGS: `${API_BASE_URL}/settings`,
   KPIS: `${API_BASE_URL}/kpis`,
+
+  // --- ANALYTICS ---
+  ANALYTICS_OVERVIEW: `${API_BASE_URL}/analytics/overview`,
+  ANALYTICS_SUMMARY: `${API_BASE_URL}/analytics/summary`,
+  ANALYTICS_HOURLY: `${API_BASE_URL}/analytics/hourly`,
+  ANALYTICS_WEEKDAYS: `${API_BASE_URL}/analytics/weekdays`,
+  ANALYTICS_TIMING: `${API_BASE_URL}/analytics/timing`,
+  ANALYTICS_CAMPAIGNS: `${API_BASE_URL}/analytics/campaigns`,
 } as const;
 
 // ============================================================================
