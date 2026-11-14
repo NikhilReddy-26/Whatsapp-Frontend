@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Layers, Calendar, BarChart3, Users, Paintbrush, Settings as SettingsIcon, ArrowUpRight, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, X, Layers, Calendar, BarChart3, Users, Paintbrush, Megaphone, Settings as SettingsIcon, ArrowUpRight, LogOut, ChevronDown } from 'lucide-react';
 import type { ActivePageView } from '../types/crm';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { Button } from './ui/Button';
@@ -59,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'appointments', label: 'Site Visits', icon: <Calendar className="w-4 h-4" /> },
     { id: 'channel_partners', label: 'Channel Partners', icon: <Users className="w-4 h-4" /> },
     { id: 'applicators', label: 'Applicators', icon: <Paintbrush className="w-4 h-4" /> },
+    { id: 'broadcast', label: 'Broadcast', icon: <Megaphone className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
   ];
 

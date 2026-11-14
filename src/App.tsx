@@ -22,6 +22,7 @@ import { SettingsView } from './components/SettingsView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { ChannelPartnersView } from './components/ChannelPartnersView';
 import { ApplicatorsView } from './components/ApplicatorsView';
+import { BroadcastView } from './components/BroadcastView';
 import { Skeleton } from './components/ui/Skeleton';
 
 function AppContent() {
@@ -464,6 +465,19 @@ function AppContent() {
                   }}
                   availableStates={settings?.states}
                 />
+              </motion.div>
+            )}
+
+            {/* BROADCAST PAGE */}
+            {activePage === 'broadcast' && (
+              <motion.div
+                key="broadcast"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <BroadcastView />
               </motion.div>
             )}
 
