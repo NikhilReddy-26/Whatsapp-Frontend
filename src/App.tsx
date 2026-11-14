@@ -584,14 +584,7 @@ function AppContent() {
                 animate="animate"
                 exit="exit"
               >
-                <BroadcastView
-                  leads={leads}
-                  channelPartners={channelPartners}
-                  onNavigateToDesk={() => {
-                    setActivePage('desk');
-                    setSelectedLeadId(null);
-                  }}
-                />
+                <BroadcastView />
               </motion.div>
             )}
 
