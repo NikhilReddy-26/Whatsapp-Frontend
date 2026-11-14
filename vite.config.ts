@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: true,
         },
+        // Dev only: forward /broadcast-api/* to the FastAPI broadcaster (prefix stripped)
+        '/broadcast-api': {
+          target: env.VITE_BROADCAST_PROXY_TARGET || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/broadcast-api/, ''),
+        },
       },
     },
   }

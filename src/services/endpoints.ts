@@ -12,6 +12,29 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').rep
 // Set VITE_USE_MOCK_API=true to run the whole UI against the bundled demo data (no backend needed).
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
+// FastAPI broadcaster (lead-broadcaster). Dev default is proxied by vite.config.ts.
+export const BROADCAST_API_BASE_URL = (import.meta.env.VITE_BROADCAST_API_BASE_URL || '/broadcast-api').replace(/\/+$/, '');
+
+export const BROADCAST_ENDPOINTS = {
+  IMPORT_UPLOAD: `${BROADCAST_API_BASE_URL}/api/imports/upload`,
+  IMPORT_BY_ID: (id: string) => `${BROADCAST_API_BASE_URL}/api/imports/${encodeURIComponent(id)}`,
+  IMPORT_CONFIRM: (id: string) => `${BROADCAST_API_BASE_URL}/api/imports/${encodeURIComponent(id)}/confirm`,
+
+  LEADS: `${BROADCAST_API_BASE_URL}/api/leads`,
+  LEAD_BY_ID: (id: string) => `${BROADCAST_API_BASE_URL}/api/leads/${encodeURIComponent(id)}`,
+  LEADS_BATCH_DELETE: `${BROADCAST_API_BASE_URL}/api/leads/batch-delete`,
+
+  TEMPLATES: `${BROADCAST_API_BASE_URL}/api/templates`,
+  TEMPLATES_SYNC: `${BROADCAST_API_BASE_URL}/api/templates/sync`,
+
+  CAMPAIGNS: `${BROADCAST_API_BASE_URL}/api/campaigns`,
+  CAMPAIGN_BY_ID: (id: string) => `${BROADCAST_API_BASE_URL}/api/campaigns/${encodeURIComponent(id)}`,
+  CAMPAIGN_MESSAGES: (id: string) => `${BROADCAST_API_BASE_URL}/api/campaigns/${encodeURIComponent(id)}/messages`,
+  CAMPAIGN_PAUSE: (id: string) => `${BROADCAST_API_BASE_URL}/api/campaigns/${encodeURIComponent(id)}/pause`,
+  CAMPAIGN_RESUME: (id: string) => `${BROADCAST_API_BASE_URL}/api/campaigns/${encodeURIComponent(id)}/resume`,
+  CAMPAIGN_CANCEL: (id: string) => `${BROADCAST_API_BASE_URL}/api/campaigns/${encodeURIComponent(id)}/cancel`,
+} as const;
+
 export const API_ENDPOINTS = {
   // --- AUTH ---
   AUTH_LOGIN: `${API_BASE_URL}/auth/login`,
