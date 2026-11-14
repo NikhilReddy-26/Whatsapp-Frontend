@@ -152,6 +152,13 @@ export interface ExtractedChip {
   value: string;
 }
 
+export interface ConversationComposeState {
+  can_reply: boolean;
+  reason?: 'WINDOW_CLOSED' | 'OPTED_OUT' | 'LEAD_CLOSED' | 'FORBIDDEN' | string;
+  will_take_over?: boolean;
+  window_expires_at?: string;
+}
+
 export interface Message {
   id: string;
   lead_id: string;
@@ -163,6 +170,14 @@ export interface Message {
   timestamp: string;
   pacing_delay?: string;
   extracted_chips?: ExtractedChip[];
+  status?: string;
+  status_icon?: string;
+  ai_generated?: boolean;
+  sender_label?: string;
+  created_at?: string;
+  side?: string;
+  sent_by?: { id: string; name: string } | null;
+  day?: string;
 }
 
 export interface Appointment {
@@ -238,20 +253,21 @@ export type ActivePageView = 'desk' | 'analytics' | 'appointments' | 'channel_pa
 
 export interface CampaignAnalyticsMetric {
   campaign: string;
+  campaign_id?: string | null;
   platform: 'Google Search' | 'Google Ads' | 'Meta Ads' | 'LinkedIn' | 'Direct Inbound' | 'WhatsApp Direct';
   total_leads: number;
   delivery_rate: number;
   read_rate: number;
   reply_rate: number;
-  click_rate: number;
+  click_rate: number | null;
   hot_leads: number;
   warm_leads: number;
   nurture_leads: number;
   out_of_scope_leads: number;
   avg_score: number;
   conversion_rate: number;
-  cost_per_lead: number;
-  est_pipeline_value: number;
+  cost_per_lead: number | null;
+  est_pipeline_value: number | null;
   recommendation: 'SCALE_UP' | 'MAINTAIN' | 'OPTIMIZE_COPY' | 'PAUSE_REVISE';
   recommendation_text: string;
   peak_hours: string;
@@ -271,6 +287,76 @@ export interface DayOfWeekTrend {
   lead_count: number;
   qualification_rate: number;
   is_peak: boolean;
+}
+
+export interface AnalyticsDeltas {
+  delivery_rate: number | null;
+  read_rate: number | null;
+  reply_rate: number | null;
+  lead_generation_rate: number | null;
+}
+
+export interface AnalyticsSummary {
+  window?: 'today' | '7d' | '30d' | 'all';
+  from?: string;
+  to?: string;
+
+  delivery_rate: number;
+  total_messages_sent: number;
+  total_delivered: number;
+  total_failed: number;
+  avg_delivery_latency_sec: number | null;
+
+  read_rate: number;
+  total_read: number;
+  total_unread: number;
+  median_time_to_read_min: number | null;
+
+  reply_rate: number;
+  total_replies: number;
+  median_reply_time_min: number | null;
+  ai_automated_replies_pct: number;
+
+  click_rate: number | null;
+  total_clicks: number | null;
+  quote_pdf_clicks?: number | null;
+  tds_brochure_clicks?: number | null;
+  location_map_clicks?: number | null;
+
+  lead_generation_rate: number;
+  total_leads_generated: number;
+  total_leads_qualified?: number;
+  avg_lead_score: number;
+  high_intent_rate: number;
+
+  deltas?: AnalyticsDeltas | null;
+}
+
+export interface ChannelGuidance {
+  channel: string;
+  timing: string;
+  rationale: string;
+  action: string;
+}
+
+export interface AnalyticsTiming {
+  golden_hours: string;
+  best_days: string;
+  best_days_short: string;
+  budget_allocation_advice: string;
+  channel_guidance: ChannelGuidance[];
+  sample_size?: number;
+}
+
+export interface AnalyticsOverviewResponse {
+  window: 'today' | '7d' | '30d' | 'all';
+  from: string;
+  to: string;
+  summary: AnalyticsSummary;
+  hourly: HourlyLeadBucket[];
+  weekdays: DayOfWeekTrend[];
+  timing: AnalyticsTiming;
+  campaigns: CampaignAnalyticsMetric[];
 }
 
 export interface Territory {

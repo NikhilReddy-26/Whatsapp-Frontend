@@ -48,6 +48,7 @@ export const API_ENDPOINTS = {
   LEAD_AI_STATUS: (id: string) => `${API_BASE_URL}/leads/${id}/ai-status`,
   LEAD_NOTES: (id: string) => `${API_BASE_URL}/leads/${id}/notes`,
   LEAD_MESSAGES: (id: string) => `${API_BASE_URL}/leads/${id}/messages`,
+  LEAD_CHAT: (id: string) => `${API_BASE_URL}/leads/${id}/chat`,
   LEAD_EXTRACTED_FIELDS: (id: string) => `${API_BASE_URL}/leads/${id}/extracted-fields`,
   LEAD_SITE_VISITS: (id: string) => `${API_BASE_URL}/leads/${id}/site-visits`,
 
@@ -66,6 +67,14 @@ export const API_ENDPOINTS = {
   // --- SETTINGS & KPIS ---
   SETTINGS: `${API_BASE_URL}/settings`,
   KPIS: `${API_BASE_URL}/kpis`,
+
+  // --- ANALYTICS ---
+  ANALYTICS_OVERVIEW: `${API_BASE_URL}/analytics/overview`,
+  ANALYTICS_SUMMARY: `${API_BASE_URL}/analytics/summary`,
+  ANALYTICS_HOURLY: `${API_BASE_URL}/analytics/hourly`,
+  ANALYTICS_WEEKDAYS: `${API_BASE_URL}/analytics/weekdays`,
+  ANALYTICS_TIMING: `${API_BASE_URL}/analytics/timing`,
+  ANALYTICS_CAMPAIGNS: `${API_BASE_URL}/analytics/campaigns`,
 } as const;
 
 // ============================================================================

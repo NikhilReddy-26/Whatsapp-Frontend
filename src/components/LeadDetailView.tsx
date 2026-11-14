@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, Bot, UserCheck, UserPlus, Package } from 'lucide-react';
-import type { Lead, Message, PipelineStage, ChannelPartner } from '../types/crm';
+import type { Lead, Message, PipelineStage, ChannelPartner, ConversationComposeState } from '../types/crm';
 import { ScorePanel } from './ScorePanel';
 import { ChatPanel } from './ChatPanel';
 import { Badge } from './ui/Badge';
@@ -12,8 +12,9 @@ interface LeadDetailViewProps {
   lead: Lead;
   messages: Message[];
   channelPartners?: ChannelPartner[];
+  composeState?: ConversationComposeState | null;
   onBackToInbox: () => void;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string) => Promise<void> | void;
   onToggleAi: (aiActive: boolean) => void;
   onOpenConfirmVisit: () => void;
   onOpenAddNote: () => void;
@@ -26,6 +27,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
   lead,
   messages,
   channelPartners = [],
+  composeState,
   onBackToInbox,
   onSendMessage,
   onToggleAi,
@@ -209,6 +211,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
           <ChatPanel
             lead={lead}
             messages={messages}
+            composeState={composeState}
             onSendMessage={onSendMessage}
             onToggleAi={onToggleAi}
             onOpenConfirmVisit={onOpenConfirmVisit}

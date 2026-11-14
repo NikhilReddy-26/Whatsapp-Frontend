@@ -8,11 +8,13 @@ export const UNAUTHORIZED_EVENT = 'colourplus:unauthorized';
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -121,14 +123,28 @@ export async function apiRequest<T>(url: string, init: RequestInit = {}): Promis
 
   if (!res.ok || !body || (typeof body === 'object' && 'success' in (body as Record<string, unknown>) && (body as { success?: boolean }).success === false)) {
     let message = `Request failed (HTTP ${res.status})`;
-    if (body && typeof body === 'object' && 'error' in (body as Record<string, unknown>)) {
-      const err = (body as { error?: unknown }).error;
-      if (typeof err === 'string') message = err;
-      else if (err && typeof err === 'object' && 'message' in (err as Record<string, unknown>)) {
-        message = String((err as { message?: unknown }).message);
+    let code: string | undefined = undefined;
+
+    if (body && typeof body === 'object') {
+      const b = body as Record<string, unknown>;
+      if ('code' in b && typeof b.code === 'string') {
+        code = b.code;
+      }
+      if ('error' in b) {
+        const err = b.error;
+        if (typeof err === 'string') message = err;
+        else if (err && typeof err === 'object') {
+          const errObj = err as Record<string, unknown>;
+          if ('message' in errObj && errObj.message) {
+            message = String(errObj.message);
+          }
+          if ('code' in errObj && typeof errObj.code === 'string') {
+            code = errObj.code;
+          }
+        }
       }
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, code);
   }
 
   if (body && typeof body === 'object' && 'data' in (body as Record<string, unknown>)) {

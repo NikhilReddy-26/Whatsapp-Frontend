@@ -1,33 +1,6 @@
-import { Lead, CampaignAnalyticsMetric, HourlyLeadBucket, DayOfWeekTrend } from '../types/crm';
+import { Lead, CampaignAnalyticsMetric, HourlyLeadBucket, DayOfWeekTrend, AnalyticsSummary, AnalyticsTiming } from '../types/crm';
 
-export interface RealtimeMessagingStats {
-  delivery_rate: number;
-  total_messages_sent: number;
-  total_delivered: number;
-  total_failed: number;
-  avg_delivery_latency_sec: number;
-
-  read_rate: number;
-  total_read: number;
-  total_unread: number;
-  median_time_to_read_min: number;
-
-  reply_rate: number;
-  total_replies: number;
-  median_reply_time_min: number;
-  ai_automated_replies_pct: number;
-
-  click_rate: number;
-  total_clicks: number;
-  quote_pdf_clicks: number;
-  tds_brochure_clicks: number;
-  location_map_clicks: number;
-
-  lead_generation_rate: number;
-  total_leads_generated: number;
-  avg_lead_score: number;
-  high_intent_rate: number;
-}
+export type RealtimeMessagingStats = AnalyticsSummary;
 
 export interface LiveActivityEvent {
   id: string;
@@ -92,8 +65,15 @@ export const getRealtimeMessagingStats = (leads: Lead[]): RealtimeMessagingStats
 
     lead_generation_rate,
     total_leads_generated,
+    total_leads_qualified: leads.filter((l) => l.status === 'Qualified' || l.stage === 'Visit' || l.stage === 'Quote').length,
     avg_lead_score,
     high_intent_rate,
+    deltas: {
+      delivery_rate: 0.6,
+      read_rate: 2.1,
+      reply_rate: 5.4,
+      lead_generation_rate: 3.4,
+    },
   };
 };
 
@@ -281,6 +261,7 @@ export const getCampaignAnalyticsList = (leads: Lead[]): CampaignAnalyticsMetric
 
     return {
       campaign: campaignName,
+      campaign_id: `cmp-${campaignName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
       platform,
       total_leads: count,
       delivery_rate,
@@ -336,10 +317,11 @@ export const getDayOfWeekLeadTrends = (): DayOfWeekTrend[] => {
   ];
 };
 
-export const getCampaignTimingRecommendation = () => {
+export const getCampaignTimingRecommendation = (): AnalyticsTiming => {
   return {
     golden_hours: '09:30 AM – 01:00 PM & 03:00 PM – 05:30 PM',
     best_days: 'Tuesday through Thursday',
+    best_days_short: 'Tue–Thu',
     budget_allocation_advice: 'Allocate 75% of your Google & Meta ad budget between 09:30 AM – 01:00 PM and 03:00 PM – 05:30 PM. Turn off overnight deliveries (10:00 PM – 07:00 AM) to save ~₹18,500/month in non-B2B clicks.',
     channel_guidance: [
       {

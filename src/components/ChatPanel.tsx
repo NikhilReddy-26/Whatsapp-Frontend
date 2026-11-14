@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Send, Sparkles, MapPin, ExternalLink, Zap } from 'lucide-react';
-import type { Lead, Message, ExtractedChip } from '../types/crm';
+import { Send, Sparkles, MapPin, ExternalLink, Zap, Check, CheckCheck, Clock, AlertCircle, X } from 'lucide-react';
+import type { Lead, Message, ExtractedChip, ConversationComposeState } from '../types/crm';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { AnimatedText } from './ui/AnimatedText';
@@ -10,7 +10,8 @@ import { messageInCustomer, messageInAgent, messageInSystem } from '../lib/motio
 interface ChatPanelProps {
   lead: Lead | null;
   messages: Message[];
-  onSendMessage: (text: string) => void;
+  composeState?: ConversationComposeState | null;
+  onSendMessage: (text: string) => Promise<void> | void;
   onToggleAi: (aiActive: boolean) => void;
   onOpenConfirmVisit: () => void;
 }
@@ -18,20 +19,21 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   lead,
   messages,
+  composeState,
   onSendMessage,
   onToggleAi,
   onOpenConfirmVisit,
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isSending]);
 
   if (!lead) {
     return (
@@ -41,18 +43,88 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     );
   }
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-    const textToSend = inputText;
-    setInputText('');
+  const canReply = composeState ? composeState.can_reply : true;
+  const willTakeOver = composeState?.will_take_over ?? lead.ai_active;
+  const reason = composeState?.reason;
 
-    // Simulate sending with brief typing feel
-    setIsTyping(true);
-    setTimeout(() => {
-      onSendMessage(textToSend);
-      setIsTyping(false);
-    }, 300);
+  const getReasonBannerText = (r?: string) => {
+    switch (r) {
+      case 'WINDOW_CLOSED':
+        return 'The 24-hour WhatsApp window is closed. Only an approved template can be sent.';
+      case 'OPTED_OUT':
+        return 'This customer opted out of messages (STOP).';
+      case 'LEAD_CLOSED':
+        return 'This lead is closed (won/lost). Chat is read-only.';
+      case 'FORBIDDEN':
+        return 'You do not have permission to reply to this lead.';
+      default:
+        return 'Replying is currently disabled for this lead.';
+    }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || !canReply || isSending) return;
+    const textToSend = inputText;
+    setIsSending(true);
+
+    try {
+      await onSendMessage(textToSend);
+      setInputText('');
+    } catch {
+      // On failure restore typed text!
+      setInputText(textToSend);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const renderStatusIcon = (msg: Message) => {
+    if (msg.sender !== 'ai' && msg.sender !== 'human') return null;
+    const status = msg.status_icon || msg.status;
+    if (!status) return null;
+
+    switch (status) {
+      case 'pending':
+      case 'queued':
+        return (
+          <span title="Queued / Pending" className="inline-flex">
+            <Clock className="w-3 h-3 text-text-tertiary shrink-0" />
+          </span>
+        );
+      case 'sent':
+        return (
+          <span title="Sent" className="inline-flex">
+            <Check className="w-3 h-3 text-text-tertiary shrink-0" />
+          </span>
+        );
+      case 'delivered':
+        return (
+          <span title="Delivered" className="inline-flex">
+            <CheckCheck className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+          </span>
+        );
+      case 'read':
+        return (
+          <span title="Read by customer" className="inline-flex">
+            <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          </span>
+        );
+      case 'failed':
+        return (
+          <span title="Failed to deliver" className="inline-flex">
+            <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+          </span>
+        );
+      case 'cancelled':
+        return (
+          <span title="Cancelled" className="inline-flex">
+            <X className="w-3 h-3 text-amber-500 shrink-0" />
+          </span>
+        );
+      default:
+        return null;
+    }
   };
 
   const getInitials = (name: string) => {
@@ -217,7 +289,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <p className="whitespace-pre-wrap">{msg.text}</p>
 
                     <div className="flex items-center justify-between text-xs mt-2.5 pt-1 border-t border-border-subtle">
-                      <span className="text-text-tertiary text-[11px] font-medium font-mono">{msg.timestamp}</span>
+                      <div className="flex items-center gap-1.5 text-text-tertiary text-[11px] font-medium font-mono">
+                        <span>{msg.timestamp}</span>
+                        {renderStatusIcon(msg)}
+                      </div>
                       <span className="text-brand-green text-[11px] font-semibold font-mono flex items-center gap-1">
                         Pacing delay: {msg.pacing_delay || '8s'}
                       </span>
@@ -287,8 +362,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 <div className="bg-brand-navy/15 border border-brand-navy/30 dark:bg-blue-950/40 text-text-primary rounded-2xl rounded-tr-xs p-4 text-[13.5px] leading-relaxed shadow-elevation-1 w-full">
                   <p className="whitespace-pre-wrap">{msg.text}</p>
                   <div className="text-brand-navy dark:text-blue-300 text-[11px] font-medium font-mono mt-2 pt-0.5 flex items-center justify-between">
-                    <span>Sales Representative</span>
-                    <span>{msg.timestamp}</span>
+                    <span>{msg.sender_label || 'Sales Representative'}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span>{msg.timestamp}</span>
+                      {renderStatusIcon(msg)}
+                    </div>
                   </div>
                 </div>
                 <div className="w-8 h-8 rounded-xl bg-brand-navy text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-elevation-1 mt-0.5">
@@ -299,8 +377,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           })}
         </AnimatePresence>
 
-        {/* TYPING INDICATOR (3 BOUNCING DOTS) */}
-        {isTyping && (
+        {/* TYPING / SENDING INDICATOR */}
+        {isSending && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -319,48 +397,69 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
       {/* 3. CANNED QUICK REPLIES & COMPOSER FOOTER */}
       <div className="p-3.5 border-t border-border-subtle bg-surface space-y-2.5">
+        {/* Reply Disabled Reason Banner */}
+        {!canReply && (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-400 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+            <span>{getReasonBannerText(reason)}</span>
+          </div>
+        )}
+
+        {/* Notice when sending will pause AI */}
+        {canReply && willTakeOver && (
+          <div className="flex items-center gap-1.5 px-1 text-[11px] text-text-tertiary font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <span>Sending will pause the AI</span>
+          </div>
+        )}
+
         {/* Quick Suggestions Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
-          <span className="text-[10px] text-text-tertiary uppercase font-bold flex-shrink-0 flex items-center gap-1 font-mono">
-            <Zap className="w-3 h-3 text-amber-500" /> Quick Replies:
-          </span>
-          {quickSuggestions.map((sug, i) => (
-            <motion.button
-              key={i}
-              whileHover={shouldReduceMotion ? undefined : { scale: 1.03 }}
-              whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
-              onClick={() => {
-                if (sug.includes('inspection')) {
-                  onOpenConfirmVisit();
-                } else {
-                  setInputText(sug);
-                }
-              }}
-              className="whitespace-nowrap px-3 py-1 rounded-full bg-surface-subtle hover:bg-surface-hover text-text-secondary hover:text-text-primary border border-border-base text-[11px] font-medium transition cursor-pointer select-none"
-            >
-              {sug}
-            </motion.button>
-          ))}
-        </div>
+        {canReply && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
+            <span className="text-[10px] text-text-tertiary uppercase font-bold flex-shrink-0 flex items-center gap-1 font-mono">
+              <Zap className="w-3 h-3 text-amber-500" /> Quick Replies:
+            </span>
+            {quickSuggestions.map((sug, i) => (
+              <motion.button
+                key={i}
+                whileHover={shouldReduceMotion ? undefined : { scale: 1.03 }}
+                whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
+                onClick={() => {
+                  if (sug.includes('inspection')) {
+                    onOpenConfirmVisit();
+                  } else {
+                    setInputText(sug);
+                  }
+                }}
+                className="whitespace-nowrap px-3 py-1 rounded-full bg-surface-subtle hover:bg-surface-hover text-text-secondary hover:text-text-primary border border-border-base text-[11px] font-medium transition cursor-pointer select-none"
+              >
+                {sug}
+              </motion.button>
+            ))}
+          </div>
+        )}
 
         {/* Message Input Form */}
         <form onSubmit={handleSend} className="flex items-center space-x-2">
           <input
             type="text"
+            disabled={!canReply || isSending}
             placeholder={
-              lead.ai_active
+              !canReply
+                ? getReasonBannerText(reason)
+                : willTakeOver
                 ? "Type message... (Will switch to Human active mode)"
                 : "Type message to customer on WhatsApp..."
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="flex-1 bg-surface-subtle border border-border-base rounded-xl px-4 py-2.5 text-xs sm:text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy/30 transition"
+            className="flex-1 bg-surface-subtle border border-border-base rounded-xl px-4 py-2.5 text-xs sm:text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-navy focus:ring-1 focus:ring-brand-navy/30 transition disabled:opacity-60 disabled:cursor-not-allowed"
           />
           <Button
             type="submit"
             variant="brand"
             size="sm"
-            disabled={!inputText.trim()}
+            disabled={!canReply || !inputText.trim() || isSending}
             className="rounded-xl px-3.5"
           >
             <Send className="w-4 h-4" />

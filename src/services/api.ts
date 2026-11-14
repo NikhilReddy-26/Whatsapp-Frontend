@@ -1,4 +1,4 @@
-import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign } from '../types/crm';
+import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign, ConversationComposeState, AnalyticsOverviewResponse } from '../types/crm';
 import { API_ENDPOINTS, USE_MOCK_API } from './endpoints';
 import type { BackendLead, BackendSiteVisit, BackendPartner, BackendCampaign, Paginated, UpdateSiteVisitPayload, LeadListQuery } from './endpoints';
 import { http } from './http';
@@ -14,6 +14,13 @@ import { initialChannelPartners } from '../data/channelPartners';
 import { initialChannelPartnerLeads } from '../data/channelPartnerLeads';
 import { initialApplicators } from '../data/applicators';
 import { initialApplicatorLeads } from '../data/applicatorLeads';
+import {
+  getRealtimeMessagingStats,
+  getCampaignAnalyticsList,
+  getHourlyLeadDistribution,
+  getDayOfWeekLeadTrends,
+  getCampaignTimingRecommendation,
+} from '../data/analytics';
 import { formatLeadAssignmentMessage } from '../utils/formatAssignmentMessage';
 
 import { findSuggestedChannelPartner } from '../data/territories';
@@ -237,8 +244,8 @@ export const crmApi = {
       }
     } catch (err) {
       console.warn('[crmApi.getLeads] Backend server unreachable or returned error:', err);
-      if (!leadsLoadedFromBackend) {
-        leadsStore = [];
+      if (!leadsLoadedFromBackend && (!leadsStore || leadsStore.length === 0)) {
+        leadsStore = [...initialLeads];
       }
     }
     return [...leadsStore];
@@ -394,14 +401,27 @@ export const crmApi = {
     if (!lead) throw new Error('Lead not found');
 
     if (!USE_MOCK_API) {
-      try {
-        await http.patch(API_ENDPOINTS.LEAD_AI_STATUS(leadId), {
-          ai_active: aiActive,
-          bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
-        });
-      } catch (err) {
-        console.warn(`[crmApi.toggleAiStatus] Remote AI toggle failed, updating locally:`, err);
-      }
+      // In live mode, let errors propagate so callers can toast them.
+      await http.patch(API_ENDPOINTS.LEAD_AI_STATUS(leadId), {
+        ai_active: aiActive,
+        bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
+      });
+
+      // Update local state ONLY after success
+      const updated = commitLead({
+        ...lead,
+        ai_active: aiActive,
+        bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
+        needs_human: false,
+        updated_at: new Date().toISOString()
+      }, {
+        ai_active: aiActive,
+        bot_status: aiActive ? 'BOT_ACTIVE' : 'HUMAN_TAKEOVER',
+        needs_human: false,
+      });
+
+      // Do NOT add local system_note message in live mode (the real timeline comes from backend)
+      return updated;
     }
 
     const updated = commitLead({
@@ -485,15 +505,14 @@ export const crmApi = {
   // GET /api/v1/leads/{id}/messages
   async getMessages(leadId: string): Promise<Message[]> {
     if (!USE_MOCK_API) {
-      try {
-        const remoteMsgs = await http.get<Message[]>(API_ENDPOINTS.LEAD_MESSAGES(leadId));
-        if (remoteMsgs && Array.isArray(remoteMsgs) && remoteMsgs.length > 0) {
-          messagesStore[leadId] = remoteMsgs;
-          return [...remoteMsgs];
-        }
-      } catch (err) {
-        // Endpoint not yet implemented on remote server; fall back to store
+      // In live mode, if the request succeeds and returns an array (even an empty one), use it as the truth.
+      // Do not fall back to the demo/quote-generated messages in live mode. On request failure rethrow.
+      const remoteMsgs = await http.get<Message[]>(API_ENDPOINTS.LEAD_MESSAGES(leadId));
+      if (Array.isArray(remoteMsgs)) {
+        messagesStore[leadId] = remoteMsgs;
+        return [...remoteMsgs];
       }
+      return [];
     }
 
     const lead = leadsStore.find((l) => l.id === leadId || l.ref_no === leadId);
@@ -534,27 +553,66 @@ export const crmApi = {
     return Promise.resolve([...msgs]);
   },
 
+  // GET /api/v1/leads/{id}/chat?limit=1 -> compose state for reply box
+  async getConversationState(leadId: string): Promise<ConversationComposeState | null> {
+    if (USE_MOCK_API) {
+      return {
+        can_reply: true,
+        will_take_over: false,
+      };
+    }
+    try {
+      const res = await http.get<{ compose: ConversationComposeState }>(API_ENDPOINTS.LEAD_CHAT(leadId), { limit: 1 });
+      if (res && res.compose) {
+        return res.compose;
+      }
+      return null;
+    } catch (err) {
+      console.warn(`[crmApi.getConversationState] Could not fetch chat compose state:`, err);
+      return null;
+    }
+  },
+
   // POST /api/v1/leads/{id}/messages
   async sendMessage(leadId: string, text: string, sender: 'customer' | 'human' | 'ai' | 'system' = 'human'): Promise<Message> {
+    if (!USE_MOCK_API && sender === 'human') {
+      // Live mode for human staff reply: call backend and let ApiError propagate
+      const res = await http.post<Message>(API_ENDPOINTS.LEAD_MESSAGES(leadId), {
+        text,
+        sender: 'human',
+        ai_generated: false,
+      });
+
+      const sentMsg = res;
+      messagesStore[leadId] = [...(messagesStore[leadId] || []), sentMsg];
+
+      // Update lead unreplied_hours to 0 and reflect takeover
+      const lead = leadsStore.find((l) => l.id === leadId);
+      if (lead) {
+        lead.unreplied_hours = 0;
+        lead.ai_active = false;
+        lead.bot_status = 'HUMAN_TAKEOVER';
+        lead.updated_at = new Date().toISOString();
+      }
+
+      return sentMsg;
+    }
+
+    // Local-only / Mock mode or customer/ai/system senders (simulator, notes)
     const newMsg: Message = {
       id: `msg-${Date.now()}`,
       lead_id: leadId,
       sender,
       text,
       type: 'text',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      ai_generated: sender === 'ai',
+      status: 'sent',
+      status_icon: 'sent',
     };
 
-    if (!USE_MOCK_API) {
-      try {
-        await http.post(API_ENDPOINTS.LEAD_MESSAGES(leadId), { text, sender });
-      } catch (err) {
-        console.warn(`[crmApi.sendMessage] Remote message endpoint unavailable, saved locally:`, err);
-      }
-    }
-
     messagesStore[leadId] = [...(messagesStore[leadId] || []), newMsg];
-    
+
     // Update lead unreplied_hours to 0 when human/AI replies
     const lead = leadsStore.find((l) => l.id === leadId);
     if (lead) {
@@ -731,8 +789,15 @@ export const crmApi = {
   // GET /api/v1/site-visits
   async getAppointments(): Promise<Appointment[]> {
     if (!USE_MOCK_API) {
-      const visits = await http.get<BackendSiteVisit[]>(API_ENDPOINTS.SITE_VISITS);
-      appointmentsStore = (visits || []).map((v) => mapSiteVisit(v, (id) => leadsStore.find((l) => l.id === id)));
+      try {
+        const visits = await http.get<BackendSiteVisit[]>(API_ENDPOINTS.SITE_VISITS);
+        appointmentsStore = (visits || []).map((v) => mapSiteVisit(v, (id) => leadsStore.find((l) => l.id === id)));
+      } catch (err) {
+        console.warn('[crmApi.getAppointments] Failed to fetch remote site visits, using local store:', err);
+        if (!appointmentsStore || appointmentsStore.length === 0) {
+          appointmentsStore = [...initialAppointments];
+        }
+      }
     }
     return [...appointmentsStore];
   },
@@ -1151,6 +1216,58 @@ export const crmApi = {
     applicatorLeadsStore = applicatorLeadsStore.filter((l) => l.id !== leadId);
     saveToStorage(DB_STORAGE_KEYS.APPLICATOR_LEADS, applicatorLeadsStore);
     return Promise.resolve(true);
-  }
+  },
+
+  // =========================================================================
+  // --- ANALYTICS ---
+  // =========================================================================
+  async getAnalyticsOverview(
+    window: 'today' | '7d' | '30d' | 'all' = '7d',
+    campaignId?: string
+  ): Promise<AnalyticsOverviewResponse> {
+    if (USE_MOCK_API) {
+      const filteredLeads = campaignId && campaignId !== 'ALL'
+        ? leadsStore.filter((l) => l.campaign === campaignId || l.id === campaignId)
+        : leadsStore;
+      const summary = getRealtimeMessagingStats(filteredLeads);
+      const hourly = getHourlyLeadDistribution();
+      const weekdays = getDayOfWeekLeadTrends();
+      const timing = getCampaignTimingRecommendation();
+      const campaigns = getCampaignAnalyticsList(leadsStore);
+
+      return Promise.resolve({
+        window,
+        from: new Date().toISOString(),
+        to: new Date().toISOString(),
+        summary: {
+          ...summary,
+          total_leads_qualified: filteredLeads.filter(
+            (l) => l.status === 'Qualified' || l.stage === 'Visit' || l.stage === 'Quote'
+          ).length,
+          deltas: {
+            delivery_rate: 0.6,
+            read_rate: 2.1,
+            reply_rate: 5.4,
+            lead_generation_rate: 3.4,
+          },
+        },
+        hourly,
+        weekdays,
+        timing: {
+          ...timing,
+          best_days_short: 'Tue–Thu',
+          sample_size: leadsStore.length,
+        },
+        campaigns,
+      });
+    }
+
+    const query: Record<string, string> = { window };
+    if (campaignId && campaignId !== 'ALL') {
+      query.campaign_id = campaignId;
+    }
+
+    return await http.get<AnalyticsOverviewResponse>(API_ENDPOINTS.ANALYTICS_OVERVIEW, query);
+  },
 };
 

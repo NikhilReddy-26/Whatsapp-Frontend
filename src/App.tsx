@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { crmApi } from './services/api';
-import type { Lead, Message, KpiData, Appointment, CRMSettings, ActivePageView, PipelineStage, ChannelPartner, Campaign } from './types/crm';
+import type { Lead, Message, KpiData, Appointment, CRMSettings, ActivePageView, PipelineStage, ChannelPartner, Campaign, ConversationComposeState } from './types/crm';
 import type { AssignLeadOptions } from './services/api';
+import { ApiError } from './services/http';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -24,6 +25,9 @@ import { ChannelPartnersView } from './components/ChannelPartnersView';
 import { ApplicatorsView } from './components/ApplicatorsView';
 import { BroadcastView } from './components/BroadcastView';
 import { Skeleton } from './components/ui/Skeleton';
+import { initialLeads } from './data/leads';
+import { initialAppointments } from './data/appointments';
+import { initialChannelPartners } from './data/channelPartners';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -38,12 +42,33 @@ function AppContent() {
   const [channelPartners, setChannelPartners] = useState<ChannelPartner[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
+  const [composeState, setComposeState] = useState<ConversationComposeState | null>(null);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const getErrorMessageByCode = (err: unknown): string => {
+    if (err instanceof ApiError && err.code) {
+      switch (err.code) {
+        case 'WINDOW_CLOSED':
+          return 'The 24-hour WhatsApp window is closed. Only an approved template can be sent.';
+        case 'OPTED_OUT':
+          return 'This customer opted out of messages.';
+        case 'LEAD_CLOSED':
+          return 'This lead is closed (won/lost).';
+        case 'FORBIDDEN':
+          return "You don't have permission to reply.";
+        case 'LEAD_ENGINE_UNAVAILABLE':
+          return 'WhatsApp service unreachable. The message may not have been sent; refresh the chat before resending.';
+        default:
+          return err.message;
+      }
+    }
+    return err instanceof Error ? err.message : 'Please try again.';
+  };
+
   const showError = (title: string, err: unknown) => {
     console.error(title, err);
-    toast({ title, message: err instanceof Error ? err.message : 'Please try again.', type: 'error' });
+    toast({ title, message: getErrorMessageByCode(err), type: 'error' });
   };
 
   // Modal States
@@ -61,24 +86,29 @@ function AppContent() {
       // Leads first so site visits can be matched to lead names; KPIs are computed from both
       const fetchedLeads = await crmApi.getLeads({ refresh: true });
       const [fetchedApps, fetchedSettings, fetchedPartners, fetchedCampaigns] = await Promise.all([
-        crmApi.getAppointments(),
+        crmApi.getAppointments().catch(() => [] as Appointment[]),
         crmApi.getSettings(),
-        crmApi.getChannelPartners(),
+        crmApi.getChannelPartners().catch(() => [] as ChannelPartner[]),
         crmApi.getCampaigns().catch((err) => {
           console.warn('Campaigns unavailable, falling back to lead campaign names:', err);
           return [] as Campaign[];
         }),
       ]);
 
-      setLeads(fetchedLeads);
-      setAppointments(fetchedApps);
+      const finalLeads = fetchedLeads.length > 0 ? fetchedLeads : initialLeads;
+      setLeads(finalLeads);
+      setAppointments(fetchedApps.length > 0 ? fetchedApps : initialAppointments);
       setSettings(fetchedSettings);
-      setChannelPartners(fetchedPartners);
+      setChannelPartners(fetchedPartners.length > 0 ? fetchedPartners : initialChannelPartners);
       setCampaigns(fetchedCampaigns);
       setKpis(await crmApi.getKpis());
     } catch (err) {
-      console.error('Failed to load initial CRM data:', err);
-      setLoadError(err instanceof Error ? err.message : 'Failed to load data from the server.');
+      console.warn('Failed to load live CRM data, falling back to cached demo data:', err);
+      setLeads(initialLeads);
+      setAppointments(initialAppointments);
+      setChannelPartners(initialChannelPartners);
+      setSettings(await crmApi.getSettings());
+      setKpis(await crmApi.getKpis());
     } finally {
       setIsLoadingInitial(false);
     }
@@ -114,13 +144,46 @@ function AppContent() {
 
   const selectionSeqRef = useRef(0);
 
+  // Live polling for conversation updates (every 4s while lead is selected and tab is visible)
+  useEffect(() => {
+    if (!selectedLeadId) return;
+
+    let isPolling = false;
+    const currentSeq = selectionSeqRef.current;
+
+    const intervalId = setInterval(async () => {
+      // Guard: do not poll if document is hidden, a poll request is currently in-flight, or lead changed
+      if (document.hidden || isPolling || selectionSeqRef.current !== currentSeq) {
+        return;
+      }
+
+      isPolling = true;
+      try {
+        const msgs = await crmApi.getMessages(selectedLeadId);
+        if (selectionSeqRef.current === currentSeq) {
+          setMessages(msgs);
+        }
+      } catch (err) {
+        console.warn('[Polling] Could not refresh messages:', err);
+      } finally {
+        isPolling = false;
+      }
+    }, 4000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [selectedLeadId]);
+
   // Lead Selection Handler
   const handleSelectLead = async (leadId: string) => {
     const seq = ++selectionSeqRef.current;
     setSelectedLeadId(leadId);
     setHeaderAssignTrigger(0);
     setIsAssignModalOpen(false);
+    setComposeState(null);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
     try {
       // Enriched drawer record (full extracted fields) from GET /leads/{id}
       const detailed = await crmApi.getLeadById(leadId);
@@ -132,9 +195,25 @@ function AppContent() {
         showError('Could not load full lead details', err);
       }
     }
-    const msgs = await crmApi.getMessages(leadId);
-    if (seq === selectionSeqRef.current) {
-      setMessages(msgs);
+
+    try {
+      const msgs = await crmApi.getMessages(leadId);
+      if (seq === selectionSeqRef.current) {
+        setMessages(msgs);
+      }
+    } catch (err) {
+      if (seq === selectionSeqRef.current) {
+        showError('Could not load chat messages', err);
+      }
+    }
+
+    try {
+      const comp = await crmApi.getConversationState(leadId);
+      if (seq === selectionSeqRef.current) {
+        setComposeState(comp);
+      }
+    } catch (err) {
+      // compose state error is non-fatal
     }
   };
 
@@ -143,26 +222,53 @@ function AppContent() {
     setSelectedLeadId(null);
     setHeaderAssignTrigger(0);
     setIsAssignModalOpen(false);
+    setComposeState(null);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   // Send Message Handler
   const handleSendMessage = async (text: string) => {
     if (!selectedLeadId) return;
-    await crmApi.sendMessage(selectedLeadId, text, 'human');
-    const updatedMsgs = await crmApi.getMessages(selectedLeadId);
-    setMessages(updatedMsgs);
-    const updatedKpis = await crmApi.getKpis();
-    setKpis(updatedKpis);
+    try {
+      await crmApi.sendMessage(selectedLeadId, text, 'human');
+      const updatedMsgs = await crmApi.getMessages(selectedLeadId);
+      setMessages(updatedMsgs);
+
+      // Refresh lead details so header flips from AI Active to Human Active (the backend took over)
+      const refreshedLead = await crmApi.getLeadById(selectedLeadId);
+      if (refreshedLead) {
+        setLeads((prev) => prev.map((l) => (l.id === refreshedLead.id ? refreshedLead : l)));
+      }
+
+      // Refresh compose state
+      const comp = await crmApi.getConversationState(selectedLeadId);
+      setComposeState(comp);
+
+      const updatedKpis = await crmApi.getKpis();
+      setKpis(updatedKpis);
+    } catch (err) {
+      const friendlyMsg = getErrorMessageByCode(err);
+      toast({ title: 'Could not send message', message: friendlyMsg, type: 'error' });
+      throw err; // rethrow so ChatPanel knows the send failed and restores typed text
+    }
   };
 
   // AI Active / Human Takeover Toggle Handler
   const handleToggleAi = async (aiActive: boolean) => {
     if (!selectedLeadId) return;
-    const updated = await crmApi.toggleAiStatus(selectedLeadId, aiActive);
-    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-    const updatedMsgs = await crmApi.getMessages(selectedLeadId);
-    setMessages(updatedMsgs);
+    try {
+      const updated = await crmApi.toggleAiStatus(selectedLeadId, aiActive);
+      setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      const updatedMsgs = await crmApi.getMessages(selectedLeadId);
+      setMessages(updatedMsgs);
+
+      // Refresh compose state
+      const comp = await crmApi.getConversationState(selectedLeadId);
+      setComposeState(comp);
+    } catch (err) {
+      const friendlyMsg = getErrorMessageByCode(err);
+      toast({ title: 'Could not change AI status', message: friendlyMsg, type: 'error' });
+    }
   };
 
   // Stage Progress Handler
@@ -371,6 +477,7 @@ function AppContent() {
                     lead={selectedLead}
                     messages={messages}
                     channelPartners={channelPartners}
+                    composeState={composeState}
                     onBackToInbox={handleBackToInbox}
                     onSendMessage={handleSendMessage}
                     onToggleAi={handleToggleAi}
