@@ -1,4 +1,4 @@
-import type { Lead, Message, KpiData, Appointment, Followup, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign, ConversationComposeState, AnalyticsOverviewResponse } from '../types/crm';
+import type { Lead, Message, KpiData, Appointment, FollowupList, FollowupQuery, FollowupActivityRequest, FollowupActivityResponse, CRMSettings, PipelineStage, ChannelPartner, ChannelPartnerLead, Applicator, ApplicatorLead, FlooringAreaCategory, Campaign, ConversationComposeState, AnalyticsOverviewResponse } from '../types/crm';
 import { API_ENDPOINTS, USE_MOCK_API } from './endpoints';
 import type { BackendLead, BackendSiteVisit, BackendPartner, BackendCampaign, Paginated, UpdateSiteVisitPayload, LeadListQuery } from './endpoints';
 import { http } from './http';
@@ -8,7 +8,7 @@ import { initialLeads } from '../data/leads';
 import { initialMessages } from '../data/messages';
 import { initialKpis } from '../data/kpis';
 import { initialAppointments } from '../data/appointments';
-import { initialFollowups } from '../data/followups';
+import { mockFollowupItems, countFollowups } from '../data/followups';
 import { initialSettings } from '../data/settings';
 import { initialChannelPartners } from '../data/channelPartners';
 import { initialChannelPartnerLeads } from '../data/channelPartnerLeads';
@@ -158,7 +158,6 @@ function nextPartnerCode(): string {
   }, 0);
   return `CP-${String(highestNum + 1).padStart(3, '0')}`;
 }
-let followupsStore: Followup[] = [...initialFollowups];
 
 // Hydrate settings ensuring any new fields (products, states, facility_sectors) are safely merged
 const loadedSettings = loadFromStorage<Partial<CRMSettings>>(DB_STORAGE_KEYS.SETTINGS, initialSettings);
@@ -887,24 +886,42 @@ export const crmApi = {
   },
 
   // --- FOLLOWUPS ---
-  async getFollowups(): Promise<Followup[]> {
-    return Promise.resolve([...followupsStore]);
+  // GET /api/v1/followups: the tiles plus one page of the worklist. The follow-up engine
+  // (Lead Engine) writes the follow-ups; Lead Desk only reads them.
+  async getFollowups(query: FollowupQuery = {}): Promise<FollowupList> {
+    if (USE_MOCK_API) {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 25;
+      const needle = (query.q ?? '').trim().toLowerCase();
+      const matching = mockFollowupItems.filter(
+        (i) =>
+          (query.bucket ? i.bucket === query.bucket : i.bucket !== 'NOT_SENT') &&
+          (!query.kind || i.kind === query.kind) &&
+          (!query.window || (query.window === 'open') === i.window_open) &&
+          (!needle ||
+            [i.name, i.phone, i.company, i.ref_no].some((v) => v.toLowerCase().includes(needle)))
+      );
+      return {
+        counts: countFollowups(mockFollowupItems),
+        items: matching.slice((page - 1) * limit, page * limit),
+        pagination: { page, limit, total: matching.length, total_pages: Math.ceil(matching.length / limit) },
+      };
+    }
+    return http.get<FollowupList>(API_ENDPOINTS.FOLLOWUPS, { ...query });
   },
 
-  async createFollowup(fol: Omit<Followup, 'id'>): Promise<Followup> {
-    const newFol: Followup = {
-      ...fol,
-      id: `fol-${Date.now()}`
-    };
-    followupsStore.push(newFol);
-    return Promise.resolve(newFol);
-  },
-
-  async toggleFollowupStatus(id: string): Promise<Followup> {
-    const fol = followupsStore.find((f) => f.id === id);
-    if (!fol) throw new Error('Followup not found');
-    fol.status = fol.status === 'completed' ? 'pending' : 'completed';
-    return Promise.resolve({ ...fol });
+  // POST /api/v1/followups/activities: record a call outcome against one or many leads. Lead Engine
+  // writes it and uses it to allow or stop automatic follow-ups. Individual failures come back in
+  // `results` without failing the whole request.
+  async logFollowupActivity(req: FollowupActivityRequest): Promise<FollowupActivityResponse> {
+    if (USE_MOCK_API) {
+      return {
+        succeeded: req.lead_ids.length,
+        failed: 0,
+        results: req.lead_ids.map((lead_id) => ({ lead_id, ok: true })),
+      };
+    }
+    return http.post<FollowupActivityResponse>(API_ENDPOINTS.FOLLOWUPS_ACTIVITIES, req);
   },
 
   // =========================================================================

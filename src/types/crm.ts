@@ -194,15 +194,102 @@ export interface Appointment {
   notes?: string;
 }
 
-export interface Followup {
-  id: string;
+/**
+ * Follow-ups screen (GET /api/v1/followups). Every lead on the screen sits in exactly one bucket:
+ *  - SCHEDULED       the follow-up engine planned a message that has not gone out yet
+ *  - AWAITING_REPLY  a follow-up was sent and the customer has not written back
+ *  - REPLIED         the customer wrote back after a follow-up
+ *  - NO_REPLY        a follow-up went out and the customer stayed silent: sales should call
+ *  - NEEDS_MANUAL    the 24-hour WhatsApp window is closed and the lead is unfinished: call, or use a template
+ *  - NOT_SENT        a planned follow-up was cancelled or failed
+ */
+export type FollowupBucket =
+  | 'SCHEDULED'
+  | 'AWAITING_REPLY'
+  | 'REPLIED'
+  | 'NO_REPLY'
+  | 'NEEDS_MANUAL'
+  | 'NOT_SENT';
+
+export type FollowupKind = 'INCOMPLETE_INFO' | 'QUALIFIED_INACTIVE';
+
+export interface FollowupCounts {
+  scheduled: number;
+  awaiting_reply: number;
+  replied: number;
+  no_reply: number;
+  needs_manual: number;
+  not_sent: number;
+  followed_up: number;
+  reply_rate: number; // 0..1
+}
+
+export interface FollowupItem {
   lead_id: string;
-  lead_name: string;
-  title: string;
-  due_date: string;
-  priority: 'high' | 'medium' | 'low';
-  status: 'pending' | 'completed';
-  assigned_to: string;
+  ref_no: string;
+  name: string;
+  phone: string;
+  company: string;
+  city: string;
+  stage: string;
+  band: string;
+  assigned_to_name: string;
+  bot_status: string;
+  needs_human: boolean;
+  bucket: FollowupBucket;
+  kind: FollowupKind;
+  /** The follow-up's own status; empty for NEEDS_MANUAL leads the engine never planned. */
+  status: string;
+  /** The message the engine wrote (empty until one is generated). */
+  message: string;
+  missing_fields: string[];
+  cancel_reason: string;
+  last_error: string;
+  due_at: string | null;
+  sent_at: string | null;
+  last_customer_message_at: string | null;
+  window_expires_at: string | null;
+  window_open: boolean;
+  opted_out: boolean;
+  call_attempts: number;
+  last_outcome: string;
+}
+
+export interface FollowupList {
+  counts: FollowupCounts;
+  items: FollowupItem[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+}
+
+export interface FollowupQuery {
+  bucket?: FollowupBucket;
+  kind?: FollowupKind;
+  window?: 'open' | 'closed';
+  q?: string;
+  page?: number;
+  limit?: number;
+}
+
+export type SalesActivityType = 'CALL' | 'WHATSAPP' | 'CALLBACK' | 'VISIT';
+export type SalesActivityOutcome =
+  | 'NO_ANSWER'
+  | 'INTERESTED'
+  | 'NOT_INTERESTED'
+  | 'CALLBACK_REQUESTED'
+  | 'SCHEDULED'
+  | 'COMPLETED';
+
+export interface FollowupActivityRequest {
+  lead_ids: string[];
+  type: SalesActivityType;
+  outcome: SalesActivityOutcome;
+  note?: string;
+}
+
+export interface FollowupActivityResponse {
+  succeeded: number;
+  failed: number;
+  results: { lead_id: string; ok: boolean; code?: string; message?: string }[];
 }
 
 export interface Note {
@@ -249,7 +336,7 @@ export interface CRMSettings {
   facility_sectors: string[];
 }
 
-export type ActivePageView = 'desk' | 'analytics' | 'appointments' | 'channel_partners' | 'applicators' | 'broadcast' | 'simulator' | 'settings';
+export type ActivePageView = 'desk' | 'followups' | 'analytics' | 'appointments' | 'channel_partners' | 'applicators' | 'broadcast' | 'simulator' | 'settings';
 
 export interface CampaignAnalyticsMetric {
   campaign: string;

@@ -68,6 +68,10 @@ export const API_ENDPOINTS = {
   SETTINGS: `${API_BASE_URL}/settings`,
   KPIS: `${API_BASE_URL}/kpis`,
 
+  // --- FOLLOW-UPS ---
+  FOLLOWUPS: `${API_BASE_URL}/followups`,
+  FOLLOWUPS_ACTIVITIES: `${API_BASE_URL}/followups/activities`,
+
   // --- ANALYTICS ---
   ANALYTICS_OVERVIEW: `${API_BASE_URL}/analytics/overview`,
   ANALYTICS_SUMMARY: `${API_BASE_URL}/analytics/summary`,
