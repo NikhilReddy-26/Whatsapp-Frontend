@@ -164,6 +164,8 @@ export function mapLead(b: BackendLead): Lead {
       city,
       state,
       area_sqft: areaSqft,
+      lat: lat != null && Number.isFinite(lat) ? lat : undefined,
+      lng: lng != null && Number.isFinite(lng) ? lng : undefined,
     },
     fields,
     next_action: nextAction,

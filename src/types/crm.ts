@@ -35,6 +35,9 @@ export interface LocationInfo {
   city: string;
   state: string;
   area_sqft?: number;
+  /** Coordinates of a WhatsApp pin the customer shared, if any. */
+  lat?: number;
+  lng?: number;
 }
 
 export interface NextAction {
