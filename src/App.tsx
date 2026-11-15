@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { crmApi } from './services/api';
-import type { Lead, Message, KpiData, Appointment, CRMSettings, ActivePageView, PipelineStage, ChannelPartner, Campaign, ConversationComposeState } from './types/crm';
+import type { Lead, Message, KpiData, Appointment, CRMSettings, ActivePageView, PipelineStage, ChannelPartner, Campaign, ConversationComposeState, FollowupCounts } from './types/crm';
 import type { AssignLeadOptions } from './services/api';
 import { ApiError } from './services/http';
 import { ThemeProvider } from './context/ThemeContext';
@@ -24,6 +24,7 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { ChannelPartnersView } from './components/ChannelPartnersView';
 import { ApplicatorsView } from './components/ApplicatorsView';
 import { BroadcastView } from './components/BroadcastView';
+import { FollowupsView } from './components/FollowupsView';
 import { Skeleton } from './components/ui/Skeleton';
 import { initialLeads } from './data/leads';
 import { initialAppointments } from './data/appointments';
@@ -43,6 +44,12 @@ function AppContent() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [composeState, setComposeState] = useState<ConversationComposeState | null>(null);
+  // Customers a person still has to chase: shown as a badge on the Follow-ups tab.
+  const [followupAttention, setFollowupAttention] = useState(0);
+  const handleFollowupCounts = useCallback(
+    (c: FollowupCounts) => setFollowupAttention(c.needs_manual + c.no_reply),
+    []
+  );
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -102,6 +109,12 @@ function AppContent() {
       setChannelPartners(fetchedPartners.length > 0 ? fetchedPartners : initialChannelPartners);
       setCampaigns(fetchedCampaigns);
       setKpis(await crmApi.getKpis());
+
+      // The Follow-ups badge is a nicety: never let it block or fail the main load.
+      crmApi
+        .getFollowups({ limit: 1 })
+        .then((r) => handleFollowupCounts(r.counts))
+        .catch(() => undefined);
     } catch (err) {
       console.warn('Failed to load live CRM data, falling back to cached demo data:', err);
       setLeads(initialLeads);
@@ -401,6 +414,7 @@ function AppContent() {
           }
         }}
         onAssignLeadClick={handleHeaderAssignClick}
+        followupAttention={followupAttention}
       />
 
       {/* 2. MAIN PAGE CONTENT WITH PAGE TRANSITIONS */}
@@ -488,6 +502,27 @@ function AppContent() {
                     onSelectStage={handleSelectStage}
                   />
                 )}
+              </motion.div>
+            )}
+
+            {/* FOLLOW-UPS PAGE */}
+            {activePage === 'followups' && (
+              <motion.div
+                key="followups"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <FollowupsView
+                  onCountsChange={handleFollowupCounts}
+                  onOpenLead={(leadId) => {
+                    // Open the customer's chat in Lead Desk (the Header would clear the selection
+                    // on a page change, so switch first and then select).
+                    setActivePage('desk');
+                    void handleSelectLead(leadId);
+                  }}
+                />
               </motion.div>
             )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, Layers, Calendar, BarChart3, Users, Paintbrush, Megaphone, Settings as SettingsIcon, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, X, Layers, Calendar, BarChart3, Users, Paintbrush, Megaphone, Repeat, Settings as SettingsIcon, LogOut, ChevronDown } from 'lucide-react';
 import type { ActivePageView } from '../types/crm';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { AnimatedLogo } from './AnimatedLogo';
@@ -11,12 +11,15 @@ interface HeaderProps {
   setActivePage: (page: ActivePageView) => void;
   onAssignLeadClick?: () => void;
   unrepliedCount?: number;
+  /** Customers a person still has to chase (shown as a badge on the Follow-ups tab). */
+  followupAttention?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activePage,
   setActivePage,
   onAssignLeadClick,
+  followupAttention = 0,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -52,8 +55,9 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, []);
 
-  const navItems: { id: ActivePageView; label: string; icon: React.ReactNode }[] = [
+  const navItems: { id: ActivePageView; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'desk', label: 'Lead Desk', icon: <Layers className="w-4 h-4" /> },
+    { id: 'followups', label: 'Follow-ups', icon: <Repeat className="w-4 h-4" />, badge: followupAttention },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'appointments', label: 'Site Visits', icon: <Calendar className="w-4 h-4" /> },
     { id: 'channel_partners', label: 'Channel Partners', icon: <Users className="w-4 h-4" /> },
@@ -106,6 +110,11 @@ export const Header: React.FC<HeaderProps> = ({
                         >
                           <span className={isActive ? 'text-white' : 'text-text-tertiary'}>{item.icon}</span>
                           <span className="truncate">{item.label}</span>
+                          {item.badge ? (
+                            <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-brand-red text-white">
+                              {item.badge > 99 ? '99+' : item.badge}
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
@@ -140,6 +149,11 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
                 <span className="relative z-10">{item.icon}</span>
                 <span className="relative z-10">{item.label}</span>
+                {item.badge ? (
+                  <span className="relative z-10 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-brand-red text-white leading-none">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                ) : null}
               </button>
             );
           })}
