@@ -47,6 +47,7 @@ import { Button } from './ui/Button';
 import { AnimatedText } from './ui/AnimatedText';
 import { stickyBarVariants } from '../lib/motion';
 import { useToast } from '../context/ToastContext';
+import { formatLocation } from '../utils/formatLocation';
 
 interface LeadInboxProps {
   leads: Lead[];
@@ -1020,7 +1021,7 @@ export const LeadInbox: React.FC<LeadInboxProps> = ({
                     <div className="flex items-center justify-between text-xs text-text-tertiary pt-1 border-t border-border-subtle">
                       <div className="flex items-center space-x-1.5 truncate pr-2">
                         <MapPin className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
-                        <span className="truncate">{lead.location.city}, {lead.location.state}</span>
+                        <span className="truncate">{formatLocation(lead.location)}</span>
                       </div>
                       {lead.location.area_sqft && (
                         <span className="font-mono font-semibold text-text-secondary text-[11px] flex-shrink-0">

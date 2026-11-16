@@ -71,9 +71,21 @@ function hoursSince(iso: string): number {
 
 export function mapLead(b: BackendLead): Lead {
   const facts = b.facts || {};
-  const rawCity = b.city || (typeof facts.city === 'string' ? facts.city : '');
-  const { city, state } = splitCityState(rawCity);
-  const addressText = b.address_text || (typeof facts.address_text === 'string' ? facts.address_text : rawCity);
+  // The bot stores what the customer said in leads.facts; the city/address_text columns are only
+  // generated from facts.city / facts.address_text, so also look at other likely location keys.
+  const factsText = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = facts[k];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return '';
+  };
+  const factsCity = factsText('city', 'location', 'site_location', 'project_location', 'location_text');
+  const factsAddress = factsText('address_text', 'site_address', 'address', 'full_address', 'location', 'site_location');
+  const rawCity = b.city || factsCity;
+  const addressText = b.address_text || factsAddress || rawCity;
+  // "City, State" is split in two; a free-text address is kept whole so it is not cut mid-street
+  const { city, state } = rawCity ? splitCityState(rawCity) : { city: addressText, state: '' };
   const areaSqft = b.area_sqft ?? (typeof facts.area_sqft === 'number' ? facts.area_sqft : undefined);
 
   const rawFields = b.extracted_technical_fields || facts.extracted_technical_fields || [];

@@ -8,6 +8,7 @@ import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { useToast } from '../context/ToastContext';
+import { formatLocation } from '../utils/formatLocation';
 
 interface BulkAssignModalProps {
   isOpen: boolean;
@@ -316,7 +317,7 @@ export const BulkAssignModal: React.FC<BulkAssignModalProps> = ({
                       className="bg-surface p-2 rounded-xl border border-border-subtle flex items-center justify-between gap-2 shadow-2xs"
                     >
                       <span className="font-bold text-text-primary truncate">{lead.name} ({lead.company})</span>
-                      <span className="font-mono text-[10px] text-text-secondary flex-shrink-0">{lead.location.city}, {lead.location.state}</span>
+                      <span className="font-mono text-[10px] text-text-secondary flex-shrink-0">{formatLocation(lead.location)}</span>
                     </div>
                   ))}
                 </div>

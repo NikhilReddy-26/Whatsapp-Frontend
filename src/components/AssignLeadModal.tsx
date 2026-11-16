@@ -26,6 +26,7 @@ import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { useToast } from '../context/ToastContext';
+import { formatLocation } from '../utils/formatLocation';
 
 interface AssignLeadModalProps {
   isOpen: boolean;
@@ -204,7 +205,7 @@ export const AssignLeadModal: React.FC<AssignLeadModalProps> = ({
                 {lead.location?.address || 'Location address not specified'}
               </p>
               <div className="flex flex-wrap gap-3 text-[11px] text-text-secondary pt-0.5">
-                <span>City: <strong className="text-text-primary">{lead.location?.city}, {lead.location?.state}</strong></span>
+                <span>City: <strong className="text-text-primary">{formatLocation(lead.location)}</strong></span>
                 {lead.location?.area_sqft && (
                   <span>Project Area: <strong className="text-brand-green font-mono">{lead.location.area_sqft.toLocaleString()} sq ft</strong></span>
                 )}

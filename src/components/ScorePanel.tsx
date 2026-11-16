@@ -8,6 +8,7 @@ import { ProgressBar } from './ui/ProgressBar';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { AnimatedText } from './ui/AnimatedText';
+import { formatLocation } from '../utils/formatLocation';
 import {
   CalendarCheck,
   UserCheck,
@@ -229,7 +230,7 @@ export const ScorePanel: React.FC<ScorePanelProps> = ({
             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium leading-relaxed text-text-primary">
-                {lead.location.address || `${lead.location.city}, ${lead.location.state}`}
+                {lead.location.address || formatLocation(lead.location)}
               </p>
               {(matchedPartner?.google_maps_url || lead.location.maps_link) && (
                 <a
